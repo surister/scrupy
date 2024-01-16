@@ -1,4 +1,9 @@
-from request import CrawlRequest
+import collections
+import time
+from collections import deque
+from typing import Optional
+
+from .request import CrawlRequest, CrawlResponse, UNSET
 
 
 class CrawlHistory:
@@ -8,24 +13,29 @@ class CrawlHistory:
 
     def add(self, request: CrawlRequest, response: CrawlResponse):
         self.history.append(
-            {
-                'id': self.i,
-                'url': request.url,
-                'method': response.method,
-                'response': response,
-                'status_code': response.status_code,
-                'http_version': response.http_version,
-                'exception': response.exception
-            }
+            collections.namedtuple('history_row', ['id', 'request', 'response'])
+                (
+                **{
+                    'id': self.i,
+                    'request': request,
+                    'response': response,
+                }
+            )
         )
 
         self.i += 1
+
+    def __getitem__(self, item):
+        return self.history[item]
 
     def __iter__(self):
         return iter(self.history)
 
     def __str__(self):
         return str(self.history)
+
+    def __len__(self):
+        return len(self.history)
 
     def __repr__(self):
         return self.__str__()
@@ -36,8 +46,12 @@ class Crawler:
     queue: deque[CrawlRequest] = deque()
     history = CrawlHistory()
 
-    def __init__(self, *, delay_s: int = None):
+    def __init__(self,
+                 *,
+                 delay_s: int = None,
+                 follow_redirect: Optional[bool] = None):
         self.delay_s = delay_s
+        self.follow_redirect = follow_redirect
 
     def add_many_to_queue(self, urls: list[CrawlRequest | str], add_left: bool = False):
         """
@@ -91,8 +105,12 @@ class Crawler:
     def crawl(self) -> None:
         while self.queue:
             request = self.queue.pop()
-            response = request.execute()
 
+            if self.follow_redirect is not None and request.follow_redirect is UNSET:
+                # Priority is: CrawlRequest passed settings > Crawler settings
+                request.follow_redirect = self.follow_redirect
+
+            response = request.execute()
             self.history.add(request, response)
             self.on_crawled(response)
 
