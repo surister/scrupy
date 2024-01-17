@@ -1,5 +1,7 @@
 import abc
 
+import httpx
+
 UNSET = type('unset', (), {})
 
 
@@ -16,7 +18,7 @@ class CrawlRequestBase(abc.ABC):
         self.type = type
 
     @abc.abstractmethod
-    def _run_request(self, method, url, follow_redirect) -> object:
+    def _run_request(self, method, url, follow_redirect, client) -> object:
         ...
 
     @abc.abstractmethod
@@ -24,7 +26,7 @@ class CrawlRequestBase(abc.ABC):
                         method: str) -> 'CrawlResponse':
         ...
 
-    def execute(self):
+    def execute(self, client=None):
         exception = response = None
         self.follow_redirect = self.follow_redirect if self.follow_redirect is not UNSET else True
 
@@ -32,7 +34,8 @@ class CrawlRequestBase(abc.ABC):
             response = self._run_request(
                 method=self.method,
                 url=self.url,
-                follow_redirect=self.follow_redirect
+                follow_redirect=self.follow_redirect,
+                client=client
             )
 
         except Exception as e:
@@ -57,16 +60,24 @@ class CrawlRequest(CrawlRequestBase):
     Our default Crawl Request is httpx based.
     """
 
-    def _run_request(self, method, url, follow_redirect) -> object:
+    def get_default_client(self):
+        pass
+
+    def _run_request(self, method, url, follow_redirect, client: 'httpx.Client') -> object:
         import httpx
 
-        return httpx.request(
+        requester = client.request if client else httpx.request
+
+        return requester(
             method=self.method,
             url=self.url,
             follow_redirects=self.follow_redirect
         )
 
-    def _build_response(self, request: 'CrawlRequestBase', response, exception: Exception,
+    def _build_response(self,
+                        request: 'CrawlRequestBase',
+                        response,
+                        exception: Exception,
                         method: str) -> 'CrawlResponse':
         return CrawlResponse(
             request=request,
