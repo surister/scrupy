@@ -177,24 +177,17 @@ class CrawlerBase(abc.ABC):
 
         while run_forever or self.urls:
             request = self.get_from_queue()
-            client = self.get_client()
 
-            try:
-                raw_response = self._run_request(request, client)
+            if isinstance(request, str):
+                ...  # TODO Move all str --> CrawlRequest builds here.
 
-            except Exception as e:
-                exception = e
-
-            response = self._build_response(
-                request=request,
-                raw_response=raw_response,
-                exception=exception,
-            )
+            if request:
+                self._crawl(request)
 
             if self.delay_per_request:
                 time.sleep(self.delay_per_request // 1000)
             # else:
-            #     response = request.execute()
+            #     time.sleep(self._delay_per_tick)
 
         self.on_finish()
 
@@ -202,9 +195,6 @@ class CrawlerBase(abc.ABC):
 class HttpxCrawler(CrawlerBase):
     client_type = httpx.Client
     cookies_type = httpx.Cookies
-
-    def _close_connection_pool(self, client: httpx.Client) -> None:
-        client.close()
 
     def _run_request(self, request: CrawlRequest, client: httpx.Client) -> object:
         opts = self._get_extra_opts()
