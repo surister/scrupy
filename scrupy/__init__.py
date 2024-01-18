@@ -1,6 +1,6 @@
 from .request import CrawlRequest
-from .crawler import Crawler
+from .crawler import CrawlerBase, HttpxCrawler
 
 __all__ = [
-    'CrawlRequest', 'Crawler'
+    'CrawlRequest', 'CrawlerBase', 'HttpxCrawler'
 ]

@@ -1,52 +1,26 @@
-import abc
+class unset:
+    def __bool__(self):
+        return False
 
-import httpx
+    def __repr__(self):
+        return str(self.__class__)
 
-UNSET = type('unset', (), {})
+
+UNSET = unset()
 
 
-class CrawlRequestBase(abc.ABC):
-    def __init__(self, url: str,
+class CrawlRequest:
+    def __init__(self,
+                 url: str,
                  method: str = 'GET',
-                 follow_redirect: UNSET = UNSET,
+                 follow_redirects: UNSET = UNSET,
                  type: str = 'httpx'):
         self.url = url
         self.method = method
         # This allows us to have a default of False, and know when the
         # follow_redirect is directly passed in
-        self.follow_redirect = follow_redirect
+        self.follow_redirects = follow_redirects
         self.type = type
-
-    @abc.abstractmethod
-    def _run_request(self, method, url, follow_redirect, client) -> object:
-        ...
-
-    @abc.abstractmethod
-    def _build_response(self, request: 'CrawlRequestBase', response, exception: Exception,
-                        method: str) -> 'CrawlResponse':
-        ...
-
-    def execute(self, client=None):
-        exception = response = None
-        self.follow_redirect = self.follow_redirect if self.follow_redirect is not UNSET else True
-
-        try:
-            response = self._run_request(
-                method=self.method,
-                url=self.url,
-                follow_redirect=self.follow_redirect,
-                client=client
-            )
-
-        except Exception as e:
-            exception = e
-
-        return self._build_response(
-            request=self,
-            response=response,
-            exception=exception,
-            method=self.method,
-        )
 
     def __str__(self):
         return f'{self.__class__.__qualname__}(url={self.url}, method={self.method}, type={self.type})'
@@ -55,50 +29,14 @@ class CrawlRequestBase(abc.ABC):
         return self.__str__()
 
 
-class CrawlRequest(CrawlRequestBase):
-    """
-    Our default Crawl Request is httpx based.
-    """
-
-    def get_default_client(self):
-        pass
-
-    def _run_request(self, method, url, follow_redirect, client: 'httpx.Client') -> object:
-        import httpx
-
-        requester = client.request if client else httpx.request
-
-        return requester(
-            method=self.method,
-            url=self.url,
-            follow_redirects=self.follow_redirect
-        )
-
-    def _build_response(self,
-                        request: 'CrawlRequestBase',
-                        response,
-                        exception: Exception,
-                        method: str) -> 'CrawlResponse':
-        return CrawlResponse(
-            request=request,
-            raw_response=response,
-            exception=exception,
-            method=method,
-            status_code=getattr(response, 'status_code', None),
-            http_version=getattr(response, 'http_version', None),
-            raw_request=getattr(response, 'raw_request', None)
-        )
-
-
 class CrawlResponse:
     def __init__(self, *,
-                 request: CrawlRequestBase,
+                 request: CrawlRequest,
                  raw_response=None,
                  exception: Exception,
                  method: str,
                  status_code: int,
                  http_version: str,
-                 raw_request: object,
                  ):
         self.ok = raw_response and not exception
         self.raw_response = raw_response
@@ -108,7 +46,6 @@ class CrawlResponse:
 
         self.status_code = status_code
         self.http_version = http_version
-        self.raw_request = raw_request
 
     @property
     def html(self):
