@@ -1,5 +1,6 @@
 import abc
 import collections
+import logging
 import time
 from collections import deque
 from typing import Optional
@@ -7,6 +8,9 @@ from typing import Optional
 import httpx
 
 from .request import CrawlRequest, CrawlResponse, UNSET
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG)
 
 
 class CrawlHistory:
