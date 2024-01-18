@@ -1,6 +1,10 @@
 class unset:
+    """
+    Sentinel object singleton to describe a parameter that has not been explicitly set by the user
+    """
+
     def __bool__(self):
-        return False
+        raise Exception("Don't use boolean operators for unset, check identity with 'is', ie: myvar is UNSET")
 
     def __repr__(self):
         return str(self.__class__)
@@ -14,11 +18,11 @@ class CrawlRequest:
                  url: str,
                  method: str = 'GET',
                  follow_redirects: UNSET = UNSET,
+                 headers: UNSET = UNSET,
                  type: str = 'httpx'):
         self.url = url
         self.method = method
-        # This allows us to have a default of False, and know when the
-        # follow_redirect is directly passed in
+        self.headers = headers
         self.follow_redirects = follow_redirects
         self.type = type
 
