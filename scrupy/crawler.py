@@ -55,7 +55,7 @@ class CrawlerBase(abc.ABC):
 
     def __init__(self,
                  *,
-                 delay_s: int = None,
+                 delay_per_request_ms: int = None,
                  follow_redirect: Optional[bool] = False,
                  client=None,
                  run_forever: bool = False,
@@ -125,6 +125,12 @@ class CrawlerBase(abc.ABC):
     def on_crawled(self, response: CrawlResponse) -> None:
         pass
 
+    def on_start(self) -> None:
+        pass
+
+    def on_finish(self) -> None:
+        pass
+
     def get_client(self) -> object:
         pass
 
@@ -141,18 +147,34 @@ class CrawlerBase(abc.ABC):
     def _build_response(self, request: CrawlRequest, raw_response, exception: Optional[Exception]) -> CrawlResponse:
         ...
 
-    # @finally('close_connection_pool')
-    def crawl(self) -> None:
+    def _crawl(self, request: CrawlRequest) -> None:
+        raw_response = exception = None
+
+        try:
+            raw_response = self._run_request(request, self.get_client())
+
+        except Exception as e:
+            exception = e
+
+        response = self._build_response(
+            request=request,
+            raw_response=raw_response,
+            exception=exception,
+        )
+
+        self.history.add(request, response)
+        self.on_crawled(response)
+
     def run(self, run_forever: bool = False) -> None:
         """
         Initiates the crawling process, gets a CrawlRequest from the queue, creates all the necessary objects/conf,
         runs it and adds it to history.
         """
-        while self.urls:
-            raw_response = exception = None
 
-            # request always refers to CrawlRequest objects, and raw_request, to whatever underlining request object
-            # gets created, ie: requests.Request, httpx.Request..
+        logger.debug(f'Start Crawler {self.__class__.__name__}')
+
+        self.on_start()
+
         while run_forever or self.urls:
             request = self.get_from_queue()
             client = self.get_client()
@@ -169,23 +191,12 @@ class CrawlerBase(abc.ABC):
                 exception=exception,
             )
 
-            # if self.follow_redirect is not None and request.follow_redirect is UNSET:
-            #     # Priority is: CrawlRequest passed settings > Crawler settings
-            #     request.follow_redirect = self.follow_redirect
-
-            # if self.client:
-            #     with self.client as client:
-            #         response = request.execute(client)
             if self.delay_per_request:
                 time.sleep(self.delay_per_request // 1000)
             # else:
             #     response = request.execute()
 
-            self.history.add(request, response)
-            self.on_crawled(response)
-
-            if self.delay_s:
-                time.sleep(self.delay_s)
+        self.on_finish()
 
 
 class HttpxCrawler(CrawlerBase):
@@ -219,3 +230,6 @@ class HttpxCrawler(CrawlerBase):
 
     def get_client(self):
         return self.client or httpx.Client()
+
+    def on_finish(self) -> None:
+        return self.client.close()
