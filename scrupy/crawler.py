@@ -58,14 +58,20 @@ class CrawlerBase(abc.ABC):
                  delay_s: int = None,
                  follow_redirect: Optional[bool] = False,
                  client=None,
+                 run_forever: bool = False,
+                 min_delay_per_tick_ms: int = 500
                  ):
-        self.delay_s = delay_s
+        self.delay_per_request = delay_per_request_ms
         self.follow_redirect = follow_redirect
+        self.min_delay_per_tick = min_delay_per_tick_ms
 
         if client and not isinstance(client, getattr(self.__class__, 'client_type')):
             raise AttributeError('Wrong client type')  # Improve exception
 
         self.client = client
+
+        if run_forever and self.urls:
+            logging.warning('You are running ')
 
     def add_many_to_queue(self, urls: list[CrawlRequest | str], add_left: bool = False):
         """
@@ -137,6 +143,7 @@ class CrawlerBase(abc.ABC):
 
     # @finally('close_connection_pool')
     def crawl(self) -> None:
+    def run(self, run_forever: bool = False) -> None:
         """
         Initiates the crawling process, gets a CrawlRequest from the queue, creates all the necessary objects/conf,
         runs it and adds it to history.
@@ -146,6 +153,7 @@ class CrawlerBase(abc.ABC):
 
             # request always refers to CrawlRequest objects, and raw_request, to whatever underlining request object
             # gets created, ie: requests.Request, httpx.Request..
+        while run_forever or self.urls:
             request = self.get_from_queue()
             client = self.get_client()
 
@@ -168,6 +176,8 @@ class CrawlerBase(abc.ABC):
             # if self.client:
             #     with self.client as client:
             #         response = request.execute(client)
+            if self.delay_per_request:
+                time.sleep(self.delay_per_request // 1000)
             # else:
             #     response = request.execute()
 
