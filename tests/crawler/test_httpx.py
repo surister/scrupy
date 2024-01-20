@@ -18,7 +18,7 @@ def test_crawler_basic():
         pass
 
     crawler = MyCrawler()
-    crawler.crawl()
+    crawler.run()
 
     assert not crawler.history  # Empty
 
@@ -34,7 +34,7 @@ def test_crawler_crawls():
         ]
 
     crawler = MyCrawler()
-    crawler.crawl()
+    crawler.run()
 
     assert len(crawler.history) == 1
     # Fails since nothing should be on port http://localhost:12345678

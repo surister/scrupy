@@ -17,13 +17,13 @@ class CrawlRequest:
     def __init__(self,
                  url: str,
                  method: str = 'GET',
-                 follow_redirects: UNSET = UNSET,
+                 follow_redirect: UNSET = UNSET,
                  headers: UNSET = UNSET,
                  type: str = 'httpx'):
         self.url = url
         self.method = method
         self.headers = headers
-        self.follow_redirects = follow_redirects
+        self.follow_redirect = follow_redirect
         self.type = type
 
     def __str__(self):
@@ -34,7 +34,8 @@ class CrawlRequest:
 
 
 class CrawlResponse:
-    def __init__(self, *,
+    def __init__(self,
+                 *,
                  request: CrawlRequest,
                  raw_response=None,
                  exception: Exception,
