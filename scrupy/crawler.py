@@ -55,23 +55,21 @@ class CrawlerBase(abc.ABC):
 
     def __init__(self,
                  *,
-                 delay_per_request_ms: int = None,
+                 delay_per_request_ms: int = 0,
                  follow_redirect: Optional[bool] = False,
+                 min_delay_per_tick_ms: int = 500,
                  client=None,
-                 run_forever: bool = False,
-                 min_delay_per_tick_ms: int = 500
                  ):
-        self.delay_per_request = delay_per_request_ms
         self.follow_redirect = follow_redirect
-        self.min_delay_per_tick = min_delay_per_tick_ms
+        self.delay_per_request_s = delay_per_request_ms // 1000
+        self.min_delay_per_tick_s = min_delay_per_tick_ms // 1000
+
+        self._force_stop = False
 
         if client and not isinstance(client, getattr(self.__class__, 'client_type')):
             raise AttributeError('Wrong client type')  # Improve exception
 
         self.client = client
-
-        if run_forever and self.urls:
-            logging.warning('You are running ')
 
     def add_many_to_queue(self, urls: list[CrawlRequest | str], add_left: bool = False):
         """
@@ -116,11 +114,17 @@ class CrawlerBase(abc.ABC):
         """
 
         if isinstance(url, str):
-            url = CrawlRequest(url)
+            url = CrawlRequest(url)  # Fixme Can probably delete this conditional
         self.urls.appendleft(url) if add_left else self.urls.append(url)
 
     def get_from_queue(self):
-        return self.urls.pop()
+        el = None
+        try:
+            el = self.urls.pop()
+        except IndexError: # Empty deque
+            pass
+
+        return el
 
     def on_crawled(self, response: CrawlResponse) -> None:
         pass
@@ -129,9 +133,6 @@ class CrawlerBase(abc.ABC):
         pass
 
     def on_finish(self) -> None:
-        pass
-
-    def get_client(self) -> object:
         pass
 
     def _get_extra_opts(self):
@@ -146,6 +147,19 @@ class CrawlerBase(abc.ABC):
     @abc.abstractmethod
     def _build_response(self, request: CrawlRequest, raw_response, exception: Optional[Exception]) -> CrawlResponse:
         ...
+
+    @abc.abstractmethod
+    def get_client(self) -> object:
+        pass
+
+    def _build_request(self, request: CrawlRequest | str) -> CrawlRequest:
+        if isinstance(request, str):
+            request = CrawlRequest(request)
+
+        if request.follow_redirect is UNSET:
+            request.follow_redirect = self.follow_redirect
+
+        return request
 
     def _crawl(self, request: CrawlRequest) -> None:
         raw_response = exception = None
@@ -165,17 +179,20 @@ class CrawlerBase(abc.ABC):
         self.history.add(request, response)
         self.on_crawled(response)
 
+    def force_stop(self):
+        self._force_stop = True
+
     def run(self, run_forever: bool = False) -> None:
         """
         Initiates the crawling process, gets a CrawlRequest from the queue, creates all the necessary objects/conf,
         runs it and adds it to history.
         """
-
         logger.debug(f'Start Crawler {self.__class__.__name__}')
 
         self.on_start()
 
         while run_forever or self.urls:
+            _now = time.time()
             request = self.get_from_queue()
 
             if isinstance(request, str):
@@ -184,10 +201,17 @@ class CrawlerBase(abc.ABC):
             if request:
                 self._crawl(request)
 
-            if self.delay_per_request:
-                time.sleep(self.delay_per_request // 1000)
-            # else:
-            #     time.sleep(self._delay_per_tick)
+            if self.delay_per_request_s:
+                time.sleep(self.delay_per_request_s)
+
+            if self._force_stop:
+                break
+
+            _run_time = time.time() - _now
+
+            if _total_delay := _run_time + (self.delay_per_request_s or 0) < self.min_delay_per_tick_s:
+                # min delay per tick does not seem to work
+                time.sleep(_total_delay - self.min_delay_per_tick_s)
 
         self.on_finish()
 
@@ -199,11 +223,11 @@ class HttpxCrawler(CrawlerBase):
     def _run_request(self, request: CrawlRequest, client: httpx.Client) -> object:
         opts = self._get_extra_opts()
 
-        if request.follow_redirects is UNSET:
-            request.follow_redirects = opts.get('follow_redirects')
+        if request.follow_redirect is UNSET:
+            request.follow_redirect = opts.get('follow_redirects')
 
         requester = client.request or httpx.request
-        return requester(request.method, request.url, follow_redirects=request.follow_redirects)
+        return requester(request.method, request.url, follow_redirects=request.follow_redirect)
 
     def _build_response(self,
                         request: CrawlRequest,
@@ -222,4 +246,5 @@ class HttpxCrawler(CrawlerBase):
         return self.client or httpx.Client()
 
     def on_finish(self) -> None:
-        return self.client.close()
+        if self.client:
+            self.client.close()
