@@ -115,7 +115,7 @@ class CrawlerBase(abc.ABC):
 
         """
         if ignore_repeated:
-            urls = (url for url in urls if not self.history.exists(url))
+            urls = set(urls) - set(map(lambda x: x.request.url, self.history))
 
         self.urls.extendleft(urls) if add_left else self.urls.extend(urls)
 
