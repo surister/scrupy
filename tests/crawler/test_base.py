@@ -8,6 +8,7 @@ def test_crawler_run_forever():
     """
     Test that crawler runs forever, but is properly stopped when `force_stop` is called.
     """
+
     class MyCrawler(CrawlerBase):
         def on_crawled(self, response: CrawlResponse) -> None:
             self.force_stop()
@@ -67,3 +68,27 @@ def test_crawler_crawl_request_build(crawler_settings, input_request, expected_r
 
     for k, v in crawler_settings.items():
         assert getattr(request, k) == expected_request_settings[k]
+
+
+def test_crawler_add_to_queue(crawler_base):
+    crawler = crawler_base()
+    url = 'https://example.com'
+    crawler.add_to_queue(url)
+
+    assert len(crawler.urls) == 1
+    assert crawler.urls[0] == url
+
+
+def test_crawler_add_many_to_queue(crawler_base):
+    crawler = crawler_base()
+    url = 'http://example.com'
+    urls = [url, 'http:example2.com']
+    crawler.add_many_to_queue(urls)
+
+    assert len(crawler.urls) == 2
+    assert crawler.urls[0] == url
+
+    crawler.history.add(CrawlRequest(url=url), response=None)
+    crawler.add_many_to_queue([url,], ignore_repeated=True)
+
+    assert len(crawler.urls) == 2
