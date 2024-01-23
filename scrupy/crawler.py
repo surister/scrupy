@@ -50,16 +50,18 @@ class CrawlHistory:
 
 class CrawlerBase(abc.ABC):
     method: str = 'GET'
-    urls: deque[CrawlRequest] = deque()
-    history = CrawlHistory()
 
     def __init__(self,
                  *,
+                 urls: Optional[list[str | CrawlRequest]] = None,
                  delay_per_request_ms: int = 0,
                  follow_redirect: Optional[bool] = False,
                  min_delay_per_tick_ms: int = 500,
                  client=None,
                  ):
+        self.history = CrawlHistory()
+        self.urls: deque = deque(urls) if urls else deque()
+
         self.follow_redirect = follow_redirect
         self.delay_per_request_s = delay_per_request_ms // 1000
         self.min_delay_per_tick_s = min_delay_per_tick_ms // 1000
@@ -67,7 +69,7 @@ class CrawlerBase(abc.ABC):
         self._force_stop = False
 
         if client and not isinstance(client, getattr(self.__class__, 'client_type')):
-            raise AttributeError('Wrong client type')  # Improve exception
+            raise AttributeError('Wrong client type')  # Fix me improve exception
 
         self.client = client
 
@@ -112,16 +114,13 @@ class CrawlerBase(abc.ABC):
             Add one new url
             >>> Crawler.add_to_queue('https://www.google.com')
         """
-
-        if isinstance(url, str):
-            url = CrawlRequest(url)  # Fixme Can probably delete this conditional
         self.urls.appendleft(url) if add_left else self.urls.append(url)
 
     def get_from_queue(self):
         el = None
         try:
             el = self.urls.pop()
-        except IndexError: # Empty deque
+        except IndexError:  # Empty deque
             pass
 
         return el
@@ -145,7 +144,8 @@ class CrawlerBase(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def _build_response(self, request: CrawlRequest, raw_response, exception: Optional[Exception]) -> CrawlResponse:
+    def _build_response(self, request: CrawlRequest, raw_response,
+                        exception: Optional[Exception]) -> CrawlResponse:
         ...
 
     @abc.abstractmethod
@@ -193,12 +193,10 @@ class CrawlerBase(abc.ABC):
 
         while run_forever or self.urls:
             _now = time.time()
-            request = self.get_from_queue()
+            next = self.get_from_queue()
 
-            if isinstance(request, str):
-                ...  # TODO Move all str --> CrawlRequest builds here.
-
-            if request:
+            if next:
+                request = self._build_request(next)
                 self._crawl(request)
 
             if self.delay_per_request_s:
@@ -209,7 +207,8 @@ class CrawlerBase(abc.ABC):
 
             _run_time = time.time() - _now
 
-            if _total_delay := _run_time + (self.delay_per_request_s or 0) < self.min_delay_per_tick_s:
+            if _total_delay := _run_time + (
+                    self.delay_per_request_s or 0) < self.min_delay_per_tick_s:
                 # min delay per tick does not seem to work
                 time.sleep(_total_delay - self.min_delay_per_tick_s)
 
