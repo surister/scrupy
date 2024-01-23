@@ -240,6 +240,9 @@ class HttpxCrawler(CrawlerBase):
             status_code=getattr(raw_response, 'status_code', None),
             method=getattr(raw_response, 'request.method', None),
             http_version=getattr(raw_response, 'http_version', None),
+            headers=getattr(raw_response, 'headers', None),
+            encoding=getattr(raw_response, 'default_encoding', None),
+            text=getattr(raw_response, 'text', None),
         )
 
     def get_client(self):
