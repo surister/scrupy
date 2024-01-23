@@ -62,6 +62,9 @@ class HtmlParser:
 
     @property
     def links(self, only_https: bool = False):
+        if not self.text:
+            return list()
+
         scheme = 'https' if only_https else 'http'
 
         for a in self.soup.find_all('a'):
