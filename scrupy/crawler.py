@@ -15,7 +15,14 @@ logging.basicConfig(level=logging.DEBUG)
 
 class CrawlHistory:
     def __init__(self):
+        # Might want to use something more performant in the future, as lookups on runtime in the
+        # history might become relevant to avoid repeated crawls, maybe a 'set' which has
+        # Operation x in s
+        # Average case O(1)
+        # Worst Case O(n)
+
         self.history = []
+
         self.i = 0
 
     def add(self, request: CrawlRequest, response: CrawlResponse):
@@ -31,6 +38,15 @@ class CrawlHistory:
         )
 
         self.i += 1
+
+    def exists(self, url: str):
+        """
+        Returns whether the given url exists in the history
+        """
+        for history_row in self.history:
+            if history_row.request.url == url:
+                return True
+        return False
 
     def __getitem__(self, item):
         return self.history[item]
@@ -54,7 +70,7 @@ class CrawlerBase(abc.ABC):
     def __init__(self,
                  *,
                  urls: Optional[list[str | CrawlRequest]] = None,
-                 delay_per_request_ms: int = 0,
+                 delay_per_request_ms: int = 1000,
                  follow_redirect: Optional[bool] = False,
                  min_delay_per_tick_ms: int = 500,
                  client=None,
@@ -73,9 +89,14 @@ class CrawlerBase(abc.ABC):
 
         self.client = client
 
-    def add_many_to_queue(self, urls: list[CrawlRequest | str], add_left: bool = False):
+    def add_many_to_queue(self,
+                          urls: list[CrawlRequest | str],
+                          add_left: bool = False,
+                          ignore_repeated: bool = False):
         """
         Adds several elements to the crawling queue.
+
+        If ignore_repeated is True, it will not add urls that were already crawled
 
         Add a list of CrawlRequest
             >>> requests = [
@@ -92,12 +113,9 @@ class CrawlerBase(abc.ABC):
             >>> ['https://www.google.com', 'https://www.reddit.com', 'https://www.linkedin.com']
             >>> )
 
-        :param urls:
-        :param add_left:
-        :return:
         """
-        if isinstance(urls[0], str):
-            urls = [CrawlRequest(url=url) if isinstance(url, str) else url for url in urls]
+        if ignore_repeated:
+            urls = (url for url in urls if not self.history.exists(url))
 
         self.urls.extendleft(urls) if add_left else self.urls.extend(urls)
 
