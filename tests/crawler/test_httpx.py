@@ -27,15 +27,17 @@ def test_crawler_crawls():
     """
     Test that requests from the original url are crawled.
     """
-    class MyCrawler(HttpxCrawler):
-        urls = [
-            CrawlRequest('http://localhost:12345678')
-            # TODO Also add a 'str' url, our system should manage that
-        ]
+    urls = [
+        CrawlRequest('http://localhost:12345678'),
+        'http://localhost:87654321'
+    ]
 
-    crawler = MyCrawler()
+    class MyCrawler(HttpxCrawler):
+        pass
+
+    crawler = MyCrawler(urls=urls)
     crawler.run()
 
-    assert len(crawler.history) == 1
+    assert len(crawler.history) == 2
     # Fails since nothing should be on port http://localhost:12345678
     assert isinstance(crawler.history[0].response.exception, httpx.ConnectError)
