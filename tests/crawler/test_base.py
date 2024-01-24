@@ -89,6 +89,29 @@ def test_crawler_add_many_to_queue(crawler_base):
     assert crawler.urls[0] == url
 
     crawler.history.add(CrawlRequest(url=url), response=None)
-    crawler.add_many_to_queue([url,], ignore_repeated=True)
+    crawler.add_many_to_queue([url, ], ignore_repeated=True)
 
     assert len(crawler.urls) == 2
+
+
+def test_crawler_correct_settings(crawler_base):
+    """
+    Test that the right settings are assigned when building a crawl request.
+    """
+
+    user_agent = 'someuseragent'
+    another_user_agent = 'anotheruseragent'
+    crawler = crawler_base(user_agent=user_agent, follow_redirect=True)
+
+    c1 = crawler._build_request(
+        CrawlRequest(url='http://localhost',
+                     user_agent=another_user_agent,
+                     follow_redirect=False)
+    )
+    c2 = crawler._build_request('http://anotherurl.com')
+
+    assert c1.user_agent == another_user_agent
+    assert not c1.follow_redirect
+
+    assert c2.user_agent == user_agent
+    assert c2.follow_redirect
