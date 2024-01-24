@@ -9,6 +9,7 @@ import httpx
 
 from .request import CrawlRequest, CrawlResponse, UNSET
 from .mixins import HTTPSettingAwareMixin
+from .typing import SECONDS
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
@@ -76,10 +77,13 @@ class CrawlerBase(HTTPSettingAwareMixin, abc.ABC):
                  min_delay_per_tick_ms: int = 500,
                  client=None,
                  user_agent: str = 'scrupy',
-                 headers: Optional[dict] = None):
+                 headers: Optional[dict] = None,
+                 timeout: Optional[SECONDS] = 5
+                 ):
         self.history = CrawlHistory()
         self.urls: deque = deque(urls) if urls else deque()
         self.user_agent = user_agent
+        self.timeout = timeout
 
         self.headers = headers
         if self.headers is None:
@@ -99,7 +103,7 @@ class CrawlerBase(HTTPSettingAwareMixin, abc.ABC):
     def add_many_to_queue(self,
                           urls: list[CrawlRequest | str],
                           add_left: bool = False,
-                          ignore_repeated: bool = False):
+                          ignore_repeated: bool = False) -> None:
         """
         Adds several elements to the crawling queue.
 
@@ -208,7 +212,7 @@ class CrawlerBase(HTTPSettingAwareMixin, abc.ABC):
         self.history.add(request, response)
         self.on_crawled(response)
 
-    def force_stop(self):
+    def force_stop(self) -> None:
         self._force_stop = True
 
     def run(self, run_forever: bool = False) -> None:
@@ -250,10 +254,13 @@ class HttpxCrawler(CrawlerBase):
 
     def _run_request(self, request: CrawlRequest, client: httpx.Client) -> object:
         requester = client.request or httpx.request
-        return requester(request.method,
-                         request.url,
-                         follow_redirects=request.follow_redirect,
-                         headers=self.headers)
+        return requester(
+            method=request.method,
+            url=request.url,
+            follow_redirects=request.follow_redirect,
+            headers=self.headers,
+            timeout=self.timeout,
+        )
 
     def _build_response(self,
                         request: CrawlRequest,

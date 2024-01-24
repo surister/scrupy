@@ -2,19 +2,26 @@ import json
 from typing import Optional
 from functools import lru_cache
 
+from .typing import SECONDS
 from .utils import UNSET
 from .mixins import HTTPSettingAwareMixin
 
 
 class CrawlRequest(HTTPSettingAwareMixin):
-    def __init__(self, url: str, method: str = 'GET', follow_redirect: UNSET = UNSET,
-                 user_agent: UNSET = UNSET, headers: UNSET = UNSET, type: str = 'httpx'):
-
+    def __init__(self,
+                 url: str,
+                 method: str = 'GET',
+                 follow_redirect: UNSET = UNSET,
+                 user_agent: UNSET = UNSET,
+                 headers: UNSET = UNSET,
+                 timeout: SECONDS = 5,
+                 type: str = 'httpx'):
         self.url = url
         self.method = method
         self.headers = headers
         self.user_agent = user_agent
         self.follow_redirect = follow_redirect
+        self.timeout = timeout
         self.type = type
 
     def __str__(self):

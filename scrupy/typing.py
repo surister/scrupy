@@ -1,0 +1,2 @@
+class SECONDS(int):
+    pass

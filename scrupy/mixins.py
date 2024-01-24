@@ -7,7 +7,7 @@ class HTTPSettingAwareMixin:
 
     Used to inject attributes from Crawler -> CrawlRequest, respecting priorities.
     """
-    __http_attrs__ = ('follow_redirect', 'headers', 'user_agent')
+    __http_attrs__ = ('follow_redirect', 'headers', 'user_agent', 'timeout')
 
     def inject_http_attrs_from(self, other):
         for attr in self.__http_attrs__:
