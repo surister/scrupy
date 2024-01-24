@@ -13,3 +13,5 @@ class HTTPSettingAwareMixin:
         for attr in self.__http_attrs__:
             if getattr(self, attr, UNSET) is UNSET:
                 setattr(self, attr, getattr(other, attr))
+
+        self.headers['User-Agent'] = self.user_agent
