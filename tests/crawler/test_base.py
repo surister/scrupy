@@ -4,19 +4,16 @@ from scrupy import CrawlerBase, CrawlRequest
 from scrupy.request import CrawlResponse
 
 
-def test_crawler_run_forever():
+def test_crawler_run_forever(crawler_base):
     """
     Test that crawler runs forever, but is properly stopped when `force_stop` is called.
     """
 
-    class MyCrawler(CrawlerBase):
+    class MyCrawler(crawler_base):
         def on_crawled(self, response: CrawlResponse) -> None:
             self.force_stop()
 
-    # This allows us to instantiate an ABC without implementing all abc.abstractmethods
-    MyCrawler.__abstractmethods__ = set()
-
-    crawler = MyCrawler()
+    crawler = MyCrawler(delay_per_request_ms=0, min_delay_per_tick_ms=0)
     crawler.add_to_queue('http://localhost:8080/')
     crawler.run(run_forever=True)
 
