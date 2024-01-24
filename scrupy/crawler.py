@@ -8,6 +8,7 @@ from typing import Optional
 import httpx
 
 from .request import CrawlRequest, CrawlResponse, UNSET
+from .mixins import HTTPSettingAwareMixin
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
@@ -64,7 +65,7 @@ class CrawlHistory:
         return self.__str__()
 
 
-class CrawlerBase(abc.ABC):
+class CrawlerBase(HTTPSettingAwareMixin, abc.ABC):
     method: str = 'GET'
 
     def __init__(self,
@@ -74,9 +75,12 @@ class CrawlerBase(abc.ABC):
                  follow_redirect: Optional[bool] = False,
                  min_delay_per_tick_ms: int = 500,
                  client=None,
-                 ):
+                 user_agent: str = 'scrupy',
+                 headers: Optional[dict] = None):
         self.history = CrawlHistory()
         self.urls: deque = deque(urls) if urls else deque()
+        self.user_agent = user_agent
+        self.headers = headers
 
         self.follow_redirect = follow_redirect
         self.delay_per_request_s = delay_per_request_ms // 1000
@@ -152,11 +156,6 @@ class CrawlerBase(abc.ABC):
     def on_finish(self) -> None:
         pass
 
-    def _get_extra_opts(self):
-        return {
-            'follow_redirects': self.follow_redirect
-        }
-
     @abc.abstractmethod
     def _run_request(self, request: CrawlRequest, client) -> object:
         ...
@@ -171,11 +170,20 @@ class CrawlerBase(abc.ABC):
         pass
 
     def _build_request(self, request: CrawlRequest | str) -> CrawlRequest:
+        """
+        Builds a request from the element got from the queue.
+
+        Settings (ie: headers) from the queue (if it is already a CrawlRequest) are prioritized
+        over wide Crawler settings.
+
+        If a `client` is provided, the priority falls under the
+        client's library implementation, in httpx, the default client the `fixme: FILL HERE`
+        takes preferences.
+        """
         if isinstance(request, str):
             request = CrawlRequest(request)
 
-        if request.follow_redirect is UNSET:
-            request.follow_redirect = self.follow_redirect
+        request.inject_http_attrs_from(self)
 
         return request
 

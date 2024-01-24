@@ -2,33 +2,18 @@ import json
 from typing import Optional
 from functools import lru_cache
 
-
-class unset:
-    """
-    Sentinel object singleton to describe a parameter that has not been explicitly set by the user
-    """
-
-    def __bool__(self):
-        raise Exception(
-            "Don't use boolean operators for unset, check identity with 'is', ie: myvar is UNSET")
-
-    def __repr__(self):
-        return str(self.__class__)
+from .utils import UNSET
+from .mixins import HTTPSettingAwareMixin
 
 
-UNSET = unset()
+class CrawlRequest(HTTPSettingAwareMixin):
+    def __init__(self, url: str, method: str = 'GET', follow_redirect: UNSET = UNSET,
+                 user_agent: UNSET = UNSET, headers: UNSET = UNSET, type: str = 'httpx'):
 
-
-class CrawlRequest:
-    def __init__(self,
-                 url: str,
-                 method: str = 'GET',
-                 follow_redirect: UNSET = UNSET,
-                 headers: UNSET = UNSET,
-                 type: str = 'httpx'):
         self.url = url
         self.method = method
         self.headers = headers
+        self.user_agent = user_agent
         self.follow_redirect = follow_redirect
         self.type = type
 
@@ -69,7 +54,7 @@ class HtmlParser:
 
         for a in self.soup.find_all('a'):
             link = a.get('href')
-            if scheme in link:
+            if link and scheme in link:
                 yield link
 
     def __str__(self):
