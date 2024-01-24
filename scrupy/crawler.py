@@ -80,7 +80,10 @@ class CrawlerBase(HTTPSettingAwareMixin, abc.ABC):
         self.history = CrawlHistory()
         self.urls: deque = deque(urls) if urls else deque()
         self.user_agent = user_agent
+
         self.headers = headers
+        if self.headers is None:
+            self.headers = {}
 
         self.follow_redirect = follow_redirect
         self.delay_per_request_s = delay_per_request_ms // 1000
@@ -246,13 +249,11 @@ class HttpxCrawler(CrawlerBase):
     cookies_type = httpx.Cookies
 
     def _run_request(self, request: CrawlRequest, client: httpx.Client) -> object:
-        opts = self._get_extra_opts()
-
-        if request.follow_redirect is UNSET:
-            request.follow_redirect = opts.get('follow_redirects')
-
         requester = client.request or httpx.request
-        return requester(request.method, request.url, follow_redirects=request.follow_redirect)
+        return requester(request.method,
+                         request.url,
+                         follow_redirects=request.follow_redirect,
+                         headers=self.headers)
 
     def _build_response(self,
                         request: CrawlRequest,
