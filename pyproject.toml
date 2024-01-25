@@ -17,6 +17,13 @@ pytest = "^7.4.4"
 pytest-httpserver = "^1.0.8"
 coverage = "^7.4.0"
 
+
+[tool.poetry.group.docs.dependencies]
+mkdocs-material = "^9.5.5"
+mkdocs-gen-files = "^0.5.0"
+mkdocs-literate-nav = "^0.6.1"
+mkdocstrings = {version = "^0.24.0", extras = ["python"]}
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
