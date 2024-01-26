@@ -3,7 +3,7 @@ from typing import Optional
 from functools import lru_cache
 
 from .typing import SECONDS
-from .utils import UNSET
+from .utils import UNSET, Url
 from .mixins import HTTPSettingAwareMixin
 
 
@@ -16,7 +16,7 @@ class CrawlRequest(HTTPSettingAwareMixin):
                  headers: UNSET = UNSET,
                  timeout: SECONDS = 5,
                  type: str = 'httpx'):
-        self.url = url
+        self.url = Url(url)
         self.method = method
         self.headers = headers
         self.user_agent = user_agent
@@ -53,15 +53,13 @@ class HtmlParser:
         return lxml.etree(self.text)
 
     @property
-    def links(self, only_https: bool = False):
+    def links(self):
         if not self.text:
             return list()
 
-        scheme = 'https' if only_https else 'http'
-
         for a in self.soup.find_all('a'):
             link = a.get('href')
-            if link and scheme in link:
+            if link:
                 yield link
 
     def __str__(self):
@@ -73,7 +71,7 @@ class CrawlResponse:
                  *,
                  request: CrawlRequest,
                  raw_response=None,
-                 exception: Exception,
+                 exception: Optional[Exception],
                  method: str,
                  status_code: int,
                  http_version: str,
@@ -101,11 +99,15 @@ class CrawlResponse:
 
     @property
     def json(self) -> list | dict:
-        return json.loads(self.text)
+        return json.loads(self.text) if self.is_json else None
 
     @property
-    def html(self) -> HtmlParser:
-        return HtmlParser(self.text)
+    def is_html(self):
+        return 'text/html' in self.headers['content-type']
+
+    @property
+    def html(self) -> Optional[HtmlParser]:
+        return HtmlParser(self.text) if self.is_html else None
 
     def __str__(self):
         return f'CrawlResponse(status_code={self.status_code}, exception={self.exception})'
