@@ -7,12 +7,13 @@ from typing import Optional
 
 import httpx
 
-from .request import CrawlRequest, CrawlResponse, UNSET
+from .request import CrawlRequest, CrawlResponse
 from .mixins import HTTPSettingAwareMixin
 from .typing import SECONDS
 
+
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
 
 
 class CrawlHistory:
@@ -22,7 +23,7 @@ class CrawlHistory:
         # Operation x in s
         # Average case O(1)
         # Worst Case O(n)
-
+        self.skipped_disallowed = 0
         self.history = []
 
         self.i = 0
@@ -80,8 +81,8 @@ class CrawlerBase(HTTPSettingAwareMixin, abc.ABC):
                  headers: Optional[dict] = None,
                  timeout: Optional[SECONDS] = 5
                  ):
-        self.history = CrawlHistory()
         self.urls: deque = deque(urls) if urls else deque()
+        self.history = CrawlHistory()
         self.user_agent = user_agent
         self.timeout = timeout
 
@@ -163,6 +164,9 @@ class CrawlerBase(HTTPSettingAwareMixin, abc.ABC):
     def on_finish(self) -> None:
         pass
 
+    def on_check_if_allowed(self, request):
+        return True
+
     @abc.abstractmethod
     def _run_request(self, request: CrawlRequest, client) -> object:
         ...
@@ -217,8 +221,12 @@ class CrawlerBase(HTTPSettingAwareMixin, abc.ABC):
 
     def run(self, run_forever: bool = False) -> None:
         """
-        Initiates the crawling process, gets a CrawlRequest from the queue, creates all the necessary objects/conf,
-        runs it and adds it to history.
+        Initiates the crawling process:
+
+        1. Gets a new element from the queue, we expect an url (str) or a CrawlRequest,
+        if it is a string, it creates a `CrawlRequest` from it.
+        2. Runs the request.
+        3. Applies the configured delays
         """
         logger.debug(f'Start Crawler {self.__class__.__name__}')
 
@@ -230,7 +238,15 @@ class CrawlerBase(HTTPSettingAwareMixin, abc.ABC):
 
             if next:
                 request = self._build_request(next)
-                self._crawl(request)
+
+                is_allowed = self.on_check_if_allowed(request)
+
+                if is_allowed:
+                    self._crawl(request)
+
+                else:
+                    self.history.skipped_disallowed += 1
+                    continue  # Skip the delays
 
             if self.delay_per_request_s:
                 time.sleep(self.delay_per_request_s)
@@ -256,7 +272,7 @@ class HttpxCrawler(CrawlerBase):
         requester = client.request or httpx.request
         return requester(
             method=request.method,
-            url=request.url,
+            url=str(request.url),
             follow_redirects=request.follow_redirect,
             headers=self.headers,
             timeout=self.timeout,
