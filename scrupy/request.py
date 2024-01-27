@@ -112,7 +112,6 @@ class CrawlResponse:
         self.headers = headers
 
         self.text = text
-
         self.encoding = encoding
 
     @property

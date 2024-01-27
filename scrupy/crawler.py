@@ -11,8 +11,12 @@ from .request import CrawlRequest, CrawlResponse
 from .mixins import HTTPSettingAwareMixin
 from .typing import SECONDS, MILLISECONDS
 
+from fake_useragent import UserAgent
 
+ua = UserAgent()
 logger = logging.getLogger(__name__)
+
+
 # logging.basicConfig(level=logging.DEBUG)
 
 
@@ -78,6 +82,7 @@ class CrawlerBase(HTTPSettingAwareMixin, abc.ABC):
                  min_delay_per_tick: MILLISECONDS = 0,
                  client=None,
                  user_agent: str = 'scrupy',
+                 randomize_user_agent_per_request: bool = False,
                  headers: Optional[dict] = None,
                  timeout: Optional[SECONDS] = 5
                  ):
@@ -85,6 +90,7 @@ class CrawlerBase(HTTPSettingAwareMixin, abc.ABC):
         self.history = CrawlHistory()
         self.user_agent = user_agent
         self.timeout = timeout
+        self.randomize_user_agent_per_request = randomize_user_agent_per_request
 
         self.headers = headers
         if self.headers is None:
@@ -158,6 +164,9 @@ class CrawlerBase(HTTPSettingAwareMixin, abc.ABC):
     def on_crawled(self, response: CrawlResponse) -> None:
         pass
 
+    def generate_user_agent(self, request) -> str:
+        return ua.chrome
+
     def on_start(self) -> None:
         pass
 
@@ -191,8 +200,13 @@ class CrawlerBase(HTTPSettingAwareMixin, abc.ABC):
         client's library implementation, in httpx, the default client the `fixme: FILL HERE`
         takes preferences.
         """
+
         if isinstance(request, str):
             request = CrawlRequest(request)
+
+        # We put user_agent generation where since it might make sense to have
+        # the request context when generating a request
+        self.user_agent = self.generate_user_agent(request) if self.randomize_user_agent_per_request else self.user_agent
 
         request.inject_http_attrs_from(self)
 

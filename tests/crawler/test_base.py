@@ -138,6 +138,7 @@ def timed(condition: str = '>=', time_ms: int = 0):
 
 @pytest.mark.timings
 def test_crawler_correct_delays(crawler_base):
+    # Fixme Parametrize this
     @timed('<=', 1200)
     def t():
         crawler = crawler_base(min_delay_per_tick=0, delay_per_request=1000)
@@ -162,3 +163,33 @@ def test_crawler_correct_delays(crawler_base):
 
     with pytest.raises(UnexpectedTimingException):
         t()
+
+
+def test_crawler_user_agent(crawler_base, crawl_request):
+    default_user_agent = 'default_user_agent'
+    c = crawler_base(
+        randomize_user_agent_per_request=True,
+        user_agent=default_user_agent
+    )
+
+    # # randomize_user_agent_per_request is True, test we get a chrome-like user-agent
+    request = c._build_request(crawl_request)
+    last_user_agent = request.user_agent
+    assert '(KHTML, like Gecko) Chrome' in request.user_agent
+    request = c._build_request('http://localhost')
+    # Test that two randomly generated user-agents are not the same, this tests for 'randomness' so
+    # technically both random generated user-agents could be the same and make this fail,
+    # in that case, ignore and re-run this.
+    assert request.user_agent != last_user_agent
+
+    # randomize_user_agent_per_request is True, and the user has its custom generate_user_agent
+    user_agent = 'someuseragent'
+    c.generate_user_agent = lambda _: user_agent
+
+    request = c._build_request('http://comein')
+    assert request.user_agent == user_agent
+
+    c.randomize_user_agent_per_request = False
+    c.user_agent = default_user_agent
+    request = c._build_request('http://otherurl')
+    assert request.user_agent == default_user_agent
