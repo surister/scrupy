@@ -9,7 +9,7 @@ import httpx
 
 from .request import CrawlRequest, CrawlResponse
 from .mixins import HTTPSettingAwareMixin
-from .typing import SECONDS
+from .typing import SECONDS, MILLISECONDS
 
 
 logger = logging.getLogger(__name__)
@@ -73,9 +73,9 @@ class CrawlerBase(HTTPSettingAwareMixin, abc.ABC):
     def __init__(self,
                  *,
                  urls: Optional[list[str | CrawlRequest]] = None,
-                 delay_per_request_ms: int = 1000,
+                 delay_per_request: MILLISECONDS = 1000,
                  follow_redirect: Optional[bool] = False,
-                 min_delay_per_tick_ms: int = 500,
+                 min_delay_per_tick: MILLISECONDS = 0,
                  client=None,
                  user_agent: str = 'scrupy',
                  headers: Optional[dict] = None,
@@ -91,8 +91,8 @@ class CrawlerBase(HTTPSettingAwareMixin, abc.ABC):
             self.headers = {}
 
         self.follow_redirect = follow_redirect
-        self.delay_per_request_s = delay_per_request_ms // 1000
-        self.min_delay_per_tick_s = min_delay_per_tick_ms // 1000
+        self.delay_per_request_s = delay_per_request // 1000
+        self.min_delay_per_tick_s = min_delay_per_tick // 1000
 
         self._force_stop = False
 
@@ -233,7 +233,7 @@ class CrawlerBase(HTTPSettingAwareMixin, abc.ABC):
         self.on_start()
 
         while run_forever or self.urls:
-            _now = time.time()
+            now = time.time()
             next = self.get_from_queue()
 
             if next:
@@ -254,12 +254,10 @@ class CrawlerBase(HTTPSettingAwareMixin, abc.ABC):
             if self._force_stop:
                 break
 
-            _run_time = time.time() - _now
+            run_time = time.time() - now
 
-            if _total_delay := _run_time + (
-                    self.delay_per_request_s or 0) < self.min_delay_per_tick_s:
-                # min delay per tick does not seem to work
-                time.sleep(_total_delay - self.min_delay_per_tick_s)
+            if run_time < self.min_delay_per_tick_s:
+                time.sleep(self.min_delay_per_tick_s - run_time)
 
         self.on_finish()
 

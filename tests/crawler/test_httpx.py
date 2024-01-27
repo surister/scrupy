@@ -35,7 +35,7 @@ def test_crawler_crawls():
     class MyCrawler(HttpxCrawler):
         pass
 
-    crawler = MyCrawler(urls=urls, delay_per_request_ms=0)
+    crawler = MyCrawler(urls=urls, delay_per_request=0)
     crawler.run()
 
     assert len(crawler.history) == 2

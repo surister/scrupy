@@ -1,3 +1,5 @@
+import time
+
 import pytest
 
 from scrupy import CrawlerBase, CrawlRequest
@@ -13,7 +15,7 @@ def test_crawler_run_forever(crawler_base):
         def on_crawled(self, response: CrawlResponse) -> None:
             self.force_stop()
 
-    crawler = MyCrawler(delay_per_request_ms=0, min_delay_per_tick_ms=0)
+    crawler = MyCrawler(delay_per_request=0, min_delay_per_tick=0)
     crawler.add_to_queue('http://localhost:8080/')
     crawler.run(run_forever=True)
 
@@ -112,3 +114,51 @@ def test_crawler_correct_settings(crawler_base):
 
     assert c2.user_agent == user_agent
     assert c2.follow_redirect
+
+
+class UnexpectedTimingException(Exception):
+    pass
+
+
+def timed(condition: str = '>=', time_ms: int = 0):
+    def deco(function):
+        def wrapper(*args, **kwargs):
+            now = time.time()
+            r = function(*args, **kwargs)
+            delta = (time.time() - now) * 1000
+            if not eval(f'{delta} {condition} {time_ms}'):
+                raise UnexpectedTimingException(
+                    f'Expected execution time to be {condition}{time_ms} milliseconds but was: {delta} milliseconds')
+            return r
+
+        return wrapper
+
+    return deco
+
+
+@pytest.mark.timings
+def test_crawler_correct_delays(crawler_base):
+    @timed('<=', 1200)
+    def t():
+        crawler = crawler_base(min_delay_per_tick=0, delay_per_request=1000)
+        crawler.add_to_queue('http://localhost:8000')
+        crawler.run()
+
+    t()
+
+    @timed('<=', 1600)
+    def t():
+        crawler = crawler_base(min_delay_per_tick=1500, delay_per_request=1000)
+        crawler.add_to_queue('http://localhost:8000')
+        crawler.run()
+
+    t()
+
+    @timed('<=', 1600)
+    def t():
+        crawler = crawler_base(min_delay_per_tick=2000, delay_per_request=1000)
+        crawler.add_to_queue('http://localhost:8000')
+        crawler.run()
+
+    with pytest.raises(UnexpectedTimingException):
+        t()
