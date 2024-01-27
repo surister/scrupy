@@ -1,6 +1,5 @@
 import json
 from typing import Optional
-from functools import lru_cache
 
 from .typing import SECONDS
 from .utils import UNSET, Url
@@ -32,38 +31,61 @@ class CrawlRequest(HTTPSettingAwareMixin):
 
 
 class HtmlParser:
-    def __init__(self, text):
+    def __init__(self, html: str, text: str, tag: str, attributes: Optional[dict] = None):
+        self.html = html
         self.text = text
+        self.tag = tag
 
-    @property
-    @lru_cache
-    def soup(self):
-        try:
-            from bs4 import BeautifulSoup
-        except ImportError:
-            raise Exception('BeautifulSoup is not installed')
-        return BeautifulSoup(self.text, 'lxml')
+        self.attributes = attributes
+        if not self.attributes:
+            self.attributes = {}
 
-    @property
-    def lxml(self):
+    def selectolax(self):
         try:
-            import lxml
+            import selectolax
         except ImportError:
-            raise Exception('lxml is missing')
-        return lxml.etree(self.text)
+            raise Exception('selectolax is not installed')
+        return selectolax.parser.HTMLParser(self.html)
+
+    def find(self, selector: str, first=False) -> list['HtmlParser']:
+        function = self.selectolax().css_first if first else self.selectolax().css
+        from collections.abc import Iterable
+
+        res = function(selector)
+        if not isinstance(res, Iterable):
+            res = (res,)
+        res = [
+            HtmlParser(
+                html=el.html,
+                attributes=el.attributes,
+                tag=el.tag,
+                text=el.text()
+            ) for el in res
+        ]
+        return res
 
     @property
     def links(self):
-        if not self.text:
+        if not self.html:
             return list()
 
-        for a in self.soup.find_all('a'):
-            link = a.get('href')
-            if link:
-                yield link
+        return [a_tag.attributes.get('href') for a_tag in self.selectolax().css('a')]
+
+    def attr(self, attr_name, default_val=None):
+        return self.attributes[attr_name]
+
+    def __repr__(self):
+        return self.__str__()
 
     def __str__(self):
-        return self.text
+        f = False
+        pos = 0
+        for i, char in enumerate(self.html):
+            if char == '<':
+                f = True
+                pos = i
+            if f and char == '>':
+                return f'Node {self.html[pos: i + 1]}'
 
 
 class CrawlResponse:
@@ -107,7 +129,7 @@ class CrawlResponse:
 
     @property
     def html(self) -> Optional[HtmlParser]:
-        return HtmlParser(self.text) if self.is_html else None
+        return HtmlParser(self.text, attributes=None, tag='html', text='') if self.is_html else None
 
     def __str__(self):
         return f'CrawlResponse(status_code={self.status_code}, exception={self.exception})'
