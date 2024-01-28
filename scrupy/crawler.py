@@ -1,5 +1,6 @@
 import abc
 import collections
+import functools
 import logging
 import time
 from collections import deque
@@ -185,6 +186,7 @@ class CrawlerBase(HTTPSettingAwareMixin, abc.ABC):
                         exception: Optional[Exception]) -> CrawlResponse:
         ...
 
+    @functools.cache
     @abc.abstractmethod
     def get_client(self) -> object:
         pass
