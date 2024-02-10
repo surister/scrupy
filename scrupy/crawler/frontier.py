@@ -40,7 +40,7 @@ class SyncFrontier(FrontierBase):
         el = None
 
         try:
-            el = self.queue.pop()
+            el = self.queue.popleft()
         except IndexError:  # Empty deque
             pass
 
@@ -51,6 +51,9 @@ class SyncFrontier(FrontierBase):
 
     def exists_in_queue(self, domain: str):
         return domain in self.queue
+
+    def __len__(self):
+        return len(self.queue)
 
 
 class AsyncFrontier(FrontierBase):

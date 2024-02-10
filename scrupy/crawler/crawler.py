@@ -14,13 +14,13 @@ from scrupy.request import CrawlResponse
 logger = logging.getLogger(__name__)
 
 
-class SyncCrawler(CrawlerBase):
+class SyncCrawlerBase(CrawlerBase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.frontier = SyncFrontier()
 
     def add_to_queue(self, urls: list[CrawlRequest | str], ignore_repeated: bool = False) -> None:
-        requests = [self._build_request(req_or_str) for req_or_str in self.start_urls]
+        requests = [self._build_request(req_or_str) for req_or_str in urls]
         if ignore_repeated:
             requests = set(urls) - set(map(lambda x: x.request.url, self.history))
 
@@ -41,7 +41,7 @@ class SyncCrawler(CrawlerBase):
             exception=exception,
         )
 
-        self.history.add(request, response)
+        self.history.add(request, response, datetime.datetime.now())
         self.on_crawled(response)
 
     def get_next(self):
@@ -55,9 +55,9 @@ class SyncCrawler(CrawlerBase):
 
         self.on_start()
 
-        while run_forever or self.urls:
+        while run_forever or len(self.frontier):
             now = time.time()
-            next = self.get_from_queue()
+            next = self.get_next()
 
             if next:
                 is_allowed = self.on_check_if_allowed(next)
@@ -83,7 +83,7 @@ class SyncCrawler(CrawlerBase):
         self.on_finish()
 
 
-class AsyncCrawler(CrawlerBase):
+class AsyncCrawlerBase(CrawlerBase):
     def __init__(
             self,
             start_urls: Optional[str | CrawlRequest] = None,
@@ -171,7 +171,7 @@ class AsyncCrawler(CrawlerBase):
         trio.run(_run)
 
 
-class HttpxCrawler(SyncCrawler):
+class HttpxCrawlerMixin:
     client_type = httpx.Client
     cookies_type = httpx.Cookies
 
@@ -210,7 +210,7 @@ class HttpxCrawler(SyncCrawler):
         super().on_finish()
 
 
-class AsyncHttpxCrawler(AsyncCrawler):
+class AsyncHttpxCrawlerMixin:
     client_type = httpx.AsyncClient
     cookies_type = httpx.Cookies
 
@@ -232,3 +232,11 @@ class AsyncHttpxCrawler(AsyncCrawler):
             encoding=getattr(raw_response, 'default_encoding', None),
             text=getattr(raw_response, 'text', None),
         )
+
+
+class Crawler(HttpxCrawlerMixin, SyncCrawlerBase):
+    pass
+
+
+class AsyncCrawler(AsyncHttpxCrawlerMixin, AsyncCrawlerBase):
+    pass
