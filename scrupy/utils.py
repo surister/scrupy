@@ -1,5 +1,7 @@
 import urllib
 
+import tldextract
+
 
 class unset:
     """
@@ -19,17 +21,16 @@ UNSET = unset()
 
 class Url:
     def __init__(self, url: str):
-        try:
-            self.url = urllib.parse.urlparse(url)
-        except Exception as e:
-            raise e
-
-        if not self.url.scheme:
-            raise Exception(f'Seems that your url {url} is missing the scheme, "http://" or "https://')
+        self.url = urllib.parse.urlparse(url)
+        self.raw_url: str = url
 
     @property
     def netloc(self):
         return self.url.netloc
+
+    @property
+    def domain(self):
+        return tldextract.extract(self.raw_url).domain
 
     def __str__(self):
         return self.url.geturl()
