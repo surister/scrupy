@@ -124,7 +124,12 @@ class CrawlResponse:
 
     @property
     def is_html(self):
-        return 'text/html' in self.headers['content-type']
+        if not self.headers:
+            self.headers = {}
+        content_type_header = self.headers.get('content-type', None)
+        if content_type_header:
+            return 'text/html' in content_type_header
+        return False
 
     @property
     def html(self) -> Optional[HtmlParser]:
