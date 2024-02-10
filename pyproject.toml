@@ -12,6 +12,8 @@ beautifulsoup4 = "^4.12.3"
 lxml = "^5.1.0"
 selectolax = "^0.3.19"
 fake-useragent = "^1.4.0"
+trio = "^0.24.0"
+tldextract = "^5.1.1"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -25,6 +27,11 @@ mkdocs-material = "^9.5.5"
 mkdocs-gen-files = "^0.5.0"
 mkdocs-literate-nav = "^0.6.1"
 mkdocstrings = {version = "^0.24.0", extras = ["python"]}
+
+
+[tool.poetry.group.cli.dependencies]
+typer = "^0.9.0"
+
 
 [build-system]
 requires = ["poetry-core"]
