@@ -71,3 +71,23 @@ def test_crawler_uses_client(httpserver: HTTPServer):
     assert all(map(lambda x: 'cookie-key' in x.response.raw_response.request.headers['cookie'], crawler.history))
     assert len(crawler.history) == 2
 
+
+def test_full_crawl(httpserver: HTTPServer):
+    """
+    Test that a full basic crawl works.
+    :return:
+    """
+    html = '<html></html>'
+    httpserver.expect_request('/test').respond_with_data(html, headers={'Content-Type': 'text/html'})
+
+    crawler = HttpxCrawler(delay_per_request=0)
+    crawler.add_to_queue(httpserver.url_for("/test"))
+    crawler.run()
+    response = crawler.history[0].response
+    assert len(crawler.history) == 1
+    with open('file.html', 'w') as f:
+        f.write(response.html.text)
+    assert response.is_html
+    assert crawler.history[0].response.html.text == html
+
+
