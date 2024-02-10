@@ -31,7 +31,8 @@ class CrawlRequest(HTTPSettingAwareMixin):
 
 
 class HtmlParser:
-    def __init__(self, html: str, text: str, tag: str, attributes: Optional[dict] = None):
+    def __init__(self, html: str, text: str, tag: str = 'doctype',
+                 attributes: Optional[dict] = None):
         self.html = html
         self.text = text
         self.tag = tag
@@ -47,13 +48,25 @@ class HtmlParser:
             raise Exception('selectolax is not installed')
         return selectolax.parser.HTMLParser(self.html)
 
-    def find(self, selector: str, first=False) -> list['HtmlParser']:
+    def find(self, selector: str, first=False, attributes: Optional[dict] = None) -> list[
+        'HtmlParser']:
+        if attributes is None:
+            attributes = {}
+
         function = self.selectolax().css_first if first else self.selectolax().css
         from collections.abc import Iterable
 
         res = function(selector)
+
         if not isinstance(res, Iterable):
             res = (res,)
+
+        res = filter(
+            lambda found: all(
+                k in found.attributes and attributes[k] == found.attributes[k] for k in attributes),
+            res
+        )
+
         res = [
             HtmlParser(
                 html=el.html,
@@ -68,16 +81,12 @@ class HtmlParser:
     def links(self):
         if not self.html:
             return list()
-
         return [a_tag.attributes.get('href') for a_tag in self.selectolax().css('a')]
 
     def attr(self, attr_name, default_val=None):
         return self.attributes[attr_name]
 
     def __repr__(self):
-        return self.__str__()
-
-    def __str__(self):
         f = False
         pos = 0
         for i, char in enumerate(self.html):
@@ -86,6 +95,9 @@ class HtmlParser:
                 pos = i
             if f and char == '>':
                 return f'Node {self.html[pos: i + 1]}'
+
+    def __str__(self):
+        return self.html
 
 
 class CrawlResponse:
@@ -133,7 +145,8 @@ class CrawlResponse:
 
     @property
     def html(self) -> Optional[HtmlParser]:
-        return HtmlParser(self.text, attributes=None, tag='html', text='') if self.is_html else None
+        return HtmlParser(self.text, attributes=None, tag='html',
+                          text=self.text) if self.is_html else None
 
     def __str__(self):
         return f'CrawlResponse(status_code={self.status_code}, exception={self.exception})'
