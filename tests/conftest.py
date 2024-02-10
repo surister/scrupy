@@ -1,6 +1,7 @@
 import pytest
 
-from scrupy import CrawlRequest, CrawlerBase
+from scrupy import CrawlRequest
+from scrupy.crawler.base import CrawlerBase
 from scrupy.request import CrawlResponse
 
 
