@@ -29,6 +29,9 @@ class CrawlRequest(HTTPSettingAwareMixin):
     def __repr__(self):
         return self.__str__()
 
+    def as_dict(self):
+        return self.__dict__
+
 
 class HtmlParser:
     def __init__(self, html: str, text: str, tag: str = 'doctype',
