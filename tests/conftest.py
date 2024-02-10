@@ -1,7 +1,8 @@
 import pytest
 
 from scrupy import CrawlRequest
-from scrupy.crawler.base import CrawlerBase
+from scrupy.crawler.crawler import SyncCrawlerBase
+
 from scrupy.request import CrawlResponse
 
 
@@ -13,8 +14,8 @@ def crawl_request():
 
 
 @pytest.fixture
-def crawler_base():
-    class Crawler(CrawlerBase): pass
+def sync_crawler():
+    class Crawler(SyncCrawlerBase): pass
 
     Crawler.__abstractmethods__ = set()
     return Crawler

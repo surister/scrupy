@@ -2,10 +2,10 @@ import httpx
 from pytest_httpserver import HTTPServer
 
 from scrupy import CrawlRequest
-from scrupy.crawler import HttpxCrawler
+from scrupy.crawler import Crawler
 
 
-def test_crawler_basic():
+def test_crawler_basic(sync_crawler):
     """
         We test that:
 
@@ -15,7 +15,7 @@ def test_crawler_basic():
         :return:
     """
 
-    class MyCrawler(HttpxCrawler):
+    class MyCrawler(sync_crawler):
         pass
 
     crawler = MyCrawler()
@@ -24,7 +24,7 @@ def test_crawler_basic():
     assert not crawler.history  # Empty
 
 
-def test_crawler_crawls():
+def test_crawler_crawls(sync_crawler):
     """
         Test that requests from the original url are crawled.
     """
@@ -33,10 +33,7 @@ def test_crawler_crawls():
         'http://localhost:87654321'
     ]
 
-    class MyCrawler(HttpxCrawler):
-        pass
-
-    crawler = MyCrawler(urls=urls, delay_per_request=0)
+    crawler = sync_crawler(start_urls=urls, delay_per_request=0)
     crawler.run()
 
     assert len(crawler.history) == 2
@@ -44,7 +41,7 @@ def test_crawler_crawls():
     assert isinstance(crawler.history[0].response.exception, httpx.ConnectError)
 
 
-def test_crawler_uses_client(httpserver: HTTPServer):
+def test_crawler_uses_client(httpserver: HTTPServer, sync_crawler):
     """
         Attributes passed from the Crawler are also present in the final request when a client is being passed.
     """
@@ -55,11 +52,9 @@ def test_crawler_uses_client(httpserver: HTTPServer):
     cookies = {'cookie-key': 'cookie-val'}
 
     client = httpx.Client(headers=headers, cookies=cookies)
-    crawler = HttpxCrawler(client=client, delay_per_request=0, headers=crawler_headers)
+    crawler = sync_crawler(client=client, delay_per_request=0, headers=crawler_headers)
 
-    crawler.add_to_queue(httpserver.url_for("/test"))
-    crawler.add_to_queue(httpserver.url_for("/test"))
-
+    crawler.add_to_queue([httpserver.url_for("/test"), httpserver.url_for("/test")])
     crawler.run()
 
     # We test that the header makes it way to the final request, attrs injected through Client Scrupy's
@@ -72,7 +67,7 @@ def test_crawler_uses_client(httpserver: HTTPServer):
     assert len(crawler.history) == 2
 
 
-def test_full_crawl(httpserver: HTTPServer):
+def test_full_crawl(httpserver: HTTPServer, sync_crawler):
     """
     Test that a full basic crawl works.
     :return:
@@ -80,7 +75,7 @@ def test_full_crawl(httpserver: HTTPServer):
     html = '<html></html>'
     httpserver.expect_request('/test').respond_with_data(html, headers={'Content-Type': 'text/html'})
 
-    crawler = HttpxCrawler(delay_per_request=0)
+    crawler = sync_crawler(delay_per_request=0)
     crawler.add_to_queue(httpserver.url_for("/test"))
     crawler.run()
     response = crawler.history[0].response
