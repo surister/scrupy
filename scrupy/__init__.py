@@ -1,6 +1,26 @@
+import os
+import logging
+
 from .request import CrawlRequest
-from .crawler import CrawlerBase, HttpxCrawler
+from .crawler.base import CrawlerBase
+
+_dev_mode_key = 'SCRUPY_DEV_MODE'
+DEV_MODE = os.getenv('_dev_mode_key', False)
+
+
+def set_dev_mode():
+    muted_loggers = ['filelock', 'httpx', 'httpcore.http11', 'httpcore.connection']
+
+    logging.basicConfig(format='[%(asctime)s][%(levelname)s][%(name)s] %(message)s',
+                        level=logging.DEBUG)
+
+    for logger in muted_loggers:
+        logging.getLogger(logger).setLevel(logging.INFO)
+
+
+if DEV_MODE:
+    set_dev_mode()
 
 __all__ = [
-    'CrawlRequest', 'CrawlerBase', 'HttpxCrawler'
+    'CrawlRequest',
 ]
