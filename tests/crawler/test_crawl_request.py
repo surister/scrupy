@@ -3,8 +3,8 @@ import pytest
 
 
 def test_crawl_request_valid_url():
-    with pytest.raises(Exception):
-        CrawlRequest(url='abc')
+    with pytest.raises(ValueError):
+        CrawlRequest(url='string')
 
 
 def test_crawl_request_valid_url_parts():
@@ -14,3 +14,4 @@ def test_crawl_request_valid_url_parts():
     assert c.url.netloc
     assert c.url == url
     assert str(c.url) == url
+    assert c.url.domain == 'domain'

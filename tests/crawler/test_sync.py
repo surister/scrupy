@@ -64,15 +64,15 @@ def test_crawler_correct_settings(sync_crawler):
     c1 = crawler._build_request(
         CrawlRequest(url='http://localhost',
                      user_agent=another_user_agent,
-                     follow_redirect=False)
+                     follow_redirects=False)
     )
     c2 = crawler._build_request('http://anotherurl.com')
 
     assert c1.user_agent == another_user_agent
-    assert not c1.follow_redirect
+    assert not c1.follow_redirects
 
     assert c2.user_agent == user_agent
-    assert c2.follow_redirect
+    assert c2.follow_redirects
 
 
 class UnexpectedTimingException(Exception):

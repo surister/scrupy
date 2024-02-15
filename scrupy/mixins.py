@@ -1,17 +1,21 @@
-from scrupy.utils import UNSET
+from scrupy.utils import NOTSET
 
 
 class HTTPSettingAwareMixin:
     """
     Mixin to inject known attributes from different classes, ie: follow_redirect, headers, user_agent..
 
-    Used to inject attributes from Crawler -> CrawlRequest, respecting priorities.
+    Used to inject attributes from Crawler or Client -> CrawlRequest.
     """
-    __http_attrs__ = ('follow_redirect', 'headers', 'user_agent', 'timeout')
+    __http_attrs__ = ('follow_redirects', 'headers', 'user_agent', 'timeout')
 
-    def inject_http_attrs_from(self, other):
+    def inject_http_attrs_from(self, other, **override):
         for attr in self.__http_attrs__:
-            if getattr(self, attr, UNSET) is UNSET:
+            if attr in override:
+                setattr(self, attr, override.get(attr))
+                continue
+
+            if getattr(self, attr, NOTSET) is NOTSET:
                 setattr(self, attr, getattr(other, attr))
 
         self.headers['User-Agent'] = self.user_agent

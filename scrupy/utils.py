@@ -3,7 +3,7 @@ import urllib
 import tldextract
 
 
-class unset:
+class NOTSET:
     """
     Sentinel object singleton to describe a parameter that has not been explicitly set by the user.
     """
@@ -19,11 +19,14 @@ class unset:
         return str(self.__class__)
 
 
-UNSET = unset()
+NOTSET = NOTSET()
 
 
 class Url:
     def __init__(self, url: str):
+        if 'http' not in url and 'https' not in url:
+            raise ValueError('Url is missing the schema. (http:// or https://')
+
         self.url = urllib.parse.urlparse(url)
         self.raw_url: str = url
 

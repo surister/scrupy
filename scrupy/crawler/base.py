@@ -21,9 +21,9 @@ class CrawlerBase(HTTPSettingAwareMixin, abc.ABC):
 
     def __init__(self,
                  *,
-                 start_urls: Optional[list[str | CrawlRequest]] = None,
+                 start_urls: Optional[list[str]] = None,
                  delay_per_request: MILLISECONDS = 1000,
-                 follow_redirect: Optional[bool] = False,
+                 follow_redirects: Optional[bool] = False,
                  min_delay_per_tick: MILLISECONDS = 0,
                  client=None,
                  user_agent: str = 'scrupy',
@@ -40,19 +40,15 @@ class CrawlerBase(HTTPSettingAwareMixin, abc.ABC):
         if self.headers is None:
             self.headers = {}
 
-        self.follow_redirect = follow_redirect
+        self.follow_redirects = follow_redirects
         self.delay_per_request_s = delay_per_request // 1000
         self.min_delay_per_tick_s = min_delay_per_tick // 1000
 
         self._force_stop = False
-
-        if client and not isinstance(client, getattr(self.__class__, 'client_type')):
-            raise AttributeError('Wrong client type')  # Fix me improve exception
-
         self.client = client
 
     @abc.abstractmethod
-    def add_to_queue(self, urls: list[CrawlRequest | str], ignore_repeated: bool = False) -> None:
+    def add_to_queue(self, urls: list[str] | str, ignore_repeated: bool = False) -> None:
         ...
 
     @abc.abstractmethod
@@ -81,46 +77,21 @@ class CrawlerBase(HTTPSettingAwareMixin, abc.ABC):
     def on_check_if_allowed(self, request):
         return True
 
-    @abc.abstractmethod
-    def _run_request(self, request: CrawlRequest, client) -> object:
-        ...
+    def _build_request(self, url: str) -> CrawlRequest:
+        if not isinstance(url, str):
+            raise TypeError(f'Expected `str` got {type(url)}')
 
-    @abc.abstractmethod
-    def _build_response(self, request: CrawlRequest, raw_response,
-                        exception: Optional[Exception]) -> CrawlResponse:
-        ...
+        request = CrawlRequest(url)
 
-    @functools.cache
-    @abc.abstractmethod
-    def get_client(self):
-        pass
-
-    def _build_request(self, request: CrawlRequest | str) -> CrawlRequest:
-        """
-        Builds a request from the element got from the queue.
-
-        Settings (ie: headers) from the queue (if it is already a CrawlRequest) are prioritized
-        over wide Crawler settings.
-
-        If a `client` is provided, the priority falls under the
-        client's library implementation, in httpx, the default client the `fixme: FILL HERE`
-        takes preferences.
-        """
-        if not isinstance(request, str) and not isinstance(request, CrawlRequest):
-            raise TypeError(f'Expected `str` or `CrawlRequest`, got {type(request)}')
-
-        if not request:
-            raise ValueError(f'Expected a url, not {request!r}')
-
-        if isinstance(request, str):
-            request = CrawlRequest(request)
-
-        # We put user_agent generation where since it might make sense to have
+        # We put user_agent generation here since it might make sense to have
         # the request context when generating a request
         self.user_agent = self.generate_user_agent(
             request) if self.randomize_user_agent_per_request else self.user_agent
 
-        request.inject_http_attrs_from(self)
+        if self.client:
+            request.inject_http_attrs_from(self.client, user_agent=self.user_agent)
+        else:
+            request.inject_http_attrs_from(self)
 
         return request
 
@@ -134,3 +105,23 @@ class CrawlerBase(HTTPSettingAwareMixin, abc.ABC):
     @abc.abstractmethod
     def run(self, run_forever: bool = False) -> None:
         ...
+
+
+class CrawlerClientBase(abc.ABC):
+    @abc.abstractmethod
+    def run_request(self):
+        ...
+
+    @abc.abstractmethod
+    def build_response(self,
+                       request: CrawlRequest,
+                       raw_response,
+                       exception: Optional[Exception] = None) -> CrawlResponse:
+        ...
+
+    @abc.abstractmethod
+    def get_new_client(self):
+        pass
+
+    def cleanup(self) -> None:
+        pass

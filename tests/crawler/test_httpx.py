@@ -29,7 +29,7 @@ def test_crawler_crawls(sync_crawler):
         Test that requests from the original url are crawled.
     """
     urls = [
-        CrawlRequest('http://localhost:12345678'),
+        'http://localhost:12345678',
         'http://localhost:87654321'
     ]
 
@@ -84,5 +84,3 @@ def test_full_crawl(httpserver: HTTPServer, sync_crawler):
         f.write(response.html.text)
     assert response.is_html
     assert crawler.history[0].response.html.text == html
-
-

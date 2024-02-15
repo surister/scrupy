@@ -1,3 +1,4 @@
+import abc
 import datetime
 import logging
 import time
@@ -7,20 +8,30 @@ import httpx
 import trio
 
 from scrupy import CrawlRequest
-from scrupy.crawler.base import CrawlerBase
+from scrupy.crawler.base import CrawlerBase, CrawlerClientBase
+from scrupy.crawler.clients import HttpxClient
 from scrupy.crawler.frontier import AsyncFrontier, SyncFrontier
 from scrupy.request import CrawlResponse
 
 logger = logging.getLogger(__name__)
 
 
-class SyncCrawlerBase(CrawlerBase):
+class Crawler(CrawlerBase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.frontier = SyncFrontier()
+        self._crawl_client = HttpxClient()
+        self.add_to_queue(self.start_urls)
 
-    def add_to_queue(self, urls: list[CrawlRequest | str], ignore_repeated: bool = False) -> None:
-        requests = [self._build_request(req_or_str) for req_or_str in urls]
+    def add_to_queue(self,
+                     urls: list[str] | str | CrawlRequest,
+                     ignore_repeated: bool = False) -> None:
+        match urls:
+            case str():
+                urls = (urls,)
+
+        requests = [self._build_request(url) for url in urls]
+
         if ignore_repeated:
             requests = set(urls) - set(map(lambda x: x.request.url, self.history))
 
@@ -28,14 +39,15 @@ class SyncCrawlerBase(CrawlerBase):
 
     def _crawl(self, request: CrawlRequest) -> None:
         raw_response = exception = None
+        client = self.client or self._crawl_client.get_new_client()
 
         try:
-            raw_response = self._run_request(request, self.get_client())
+            raw_response = self._crawl_client.run_request(request, client)
 
         except Exception as e:
             exception = e
 
-        response = self._build_response(
+        response = self._crawl_client.build_response(
             request=request,
             raw_response=raw_response,
             exception=exception,
@@ -47,18 +59,28 @@ class SyncCrawlerBase(CrawlerBase):
     def get_next(self):
         return self.frontier.get_next()
 
+    def on_crawled(self, response: CrawlResponse) -> None:
+        pass
+
+    def on_finish(self) -> None:
+        pass
+
+    def on_start(self) -> None:
+        pass
+
     def run(self, run_forever: bool = False) -> None:
         """
         Initiates the crawling process:
         """
         logger.debug(f'Start Crawler {self.__class__.__name__}')
-
+        print('yo')
         self.on_start()
-
+        print(len(self.frontier))
         while run_forever or len(self.frontier):
             now = time.time()
             next = self.get_next()
-
+            print(next)
+            print('no next?')
             if next:
                 is_allowed = self.on_check_if_allowed(next)
 
@@ -122,7 +144,7 @@ class AsyncCrawlerBase(CrawlerBase):
         return await client.request(
             method=request.method,
             url=str(request.url),
-            follow_redirects=request.follow_redirect,
+            follow_redirects=request.follow_redirects,
             headers=self.headers,
             timeout=self.timeout,
         )
@@ -171,45 +193,6 @@ class AsyncCrawlerBase(CrawlerBase):
         trio.run(_run)
 
 
-class HttpxCrawlerMixin:
-    client_type = httpx.Client
-    cookies_type = httpx.Cookies
-
-    def _run_request(self, request: CrawlRequest, client: httpx.Client) -> object:
-        return client.request(
-            method=request.method,
-            url=str(request.url),
-            follow_redirects=request.follow_redirect,
-            headers=self.headers,
-            timeout=self.timeout,
-        )
-
-    def _build_response(self,
-                        request: CrawlRequest,
-                        raw_response: httpx.Response,
-                        exception: Optional[Exception] = None) -> CrawlResponse:
-        return CrawlResponse(
-            request=request,
-            raw_response=raw_response,
-            exception=exception,
-            status_code=getattr(raw_response, 'status_code', None),
-            method=getattr(raw_response, 'request.method', None),
-            http_version=getattr(raw_response, 'http_version', None),
-            headers=getattr(raw_response, 'headers', None),
-            encoding=getattr(raw_response, 'default_encoding', None),
-            text=getattr(raw_response, 'text', None),
-        )
-
-    def get_client(self):
-        return self.client or httpx.Client()
-
-    def on_finish(self) -> None:
-        if self.client:
-            self.client.close()
-
-        super().on_finish()
-
-
 class AsyncHttpxCrawlerMixin:
     client_type = httpx.AsyncClient
     cookies_type = httpx.Cookies
@@ -232,10 +215,6 @@ class AsyncHttpxCrawlerMixin:
             encoding=getattr(raw_response, 'default_encoding', None),
             text=getattr(raw_response, 'text', None),
         )
-
-
-class Crawler(HttpxCrawlerMixin, SyncCrawlerBase):
-    pass
 
 
 class AsyncCrawler(AsyncHttpxCrawlerMixin, AsyncCrawlerBase):

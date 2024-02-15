@@ -1,33 +1,27 @@
+import dataclasses
 import json
-from typing import Optional
+from typing import Optional, Union
 
 from .typing import SECONDS
-from .utils import UNSET, Url
+from .utils import NOTSET, Url
 from .mixins import HTTPSettingAwareMixin
 
 
 class CrawlRequest(HTTPSettingAwareMixin):
+    """
+    Represents a CrawlRequest
+    """
+    __slots__ = ('url', 'method', 'user_agent', 'cookies')
+
     def __init__(self,
                  url: str,
                  method: str = 'GET',
-                 follow_redirect: UNSET = UNSET,
-                 user_agent: UNSET = UNSET,
-                 headers: UNSET = UNSET,
-                 timeout: SECONDS = 5,
-                 type: str = 'httpx'):
-        self.url = Url(url)
+                 user_agent: Union[str, NOTSET] = NOTSET,
+                 cookies: Union[dict, NOTSET] = NOTSET):
+        self.url: Url = Url(url)
         self.method = method
-        self.headers = headers
         self.user_agent = user_agent
-        self.follow_redirect = follow_redirect
-        self.timeout = timeout
-        self.type = type
-
-    def __str__(self):
-        return f'{self.__class__.__qualname__}(url={self.url}, method={self.method}, type={self.type})'
-
-    def __repr__(self):
-        return self.__str__()
+        self.cookies = cookies
 
     def as_dict(self):
         return self.__dict__
