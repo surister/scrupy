@@ -1,7 +1,7 @@
 import pytest
 
 from scrupy import CrawlRequest
-from scrupy.crawler.crawler import Crawler
+from scrupy.crawler.crawler import Crawler, AsyncCrawler
 
 from scrupy.request import CrawlResponse
 
@@ -16,6 +16,11 @@ def crawl_request():
 @pytest.fixture
 def sync_crawler():
     return Crawler
+
+
+@pytest.fixture
+def async_crawler():
+    return AsyncCrawler
 
 
 @pytest.fixture

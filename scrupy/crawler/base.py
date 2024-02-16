@@ -48,7 +48,7 @@ class CrawlerBase(HTTPSettingAwareMixin, abc.ABC):
         self.client = client
 
     @abc.abstractmethod
-    def add_to_queue(self, urls: list[str] | str, ignore_repeated: bool = False) -> None:
+    def add_to_queue(self, urls: list[str] | str) -> None:
         ...
 
     @abc.abstractmethod
@@ -64,15 +64,18 @@ class CrawlerBase(HTTPSettingAwareMixin, abc.ABC):
 
     @abc.abstractmethod
     def on_crawled(self, response: CrawlResponse) -> None:
-        pass
+        ...
+
+    def on_before_crawl(self, request: CrawlRequest) -> CrawlRequest:
+        return request
 
     @abc.abstractmethod
     def on_start(self) -> None:
-        pass
+        ...
 
     @abc.abstractmethod
     def on_finish(self) -> None:
-        pass
+        ...
 
     def on_check_if_allowed(self, request):
         return True
@@ -109,7 +112,7 @@ class CrawlerBase(HTTPSettingAwareMixin, abc.ABC):
 
 class CrawlerClientBase(abc.ABC):
     @abc.abstractmethod
-    def run_request(self):
+    def run_request(self, request, client):
         ...
 
     @abc.abstractmethod

@@ -21,7 +21,9 @@ class Crawler(CrawlerBase):
         super().__init__(*args, **kwargs)
         self.frontier = SyncFrontier()
         self._crawl_client = HttpxClient()
-        self.add_to_queue(self.start_urls)
+
+        if self.start_urls:
+            self.add_to_queue(self.start_urls)
 
     def add_to_queue(self,
                      urls: list[str] | str | CrawlRequest,
@@ -38,6 +40,8 @@ class Crawler(CrawlerBase):
         self.frontier.add_to_queue(requests)
 
     def _crawl(self, request: CrawlRequest) -> None:
+        request = self.on_before_crawl(request)
+
         raw_response = exception = None
         client = self.client or self._crawl_client.get_new_client()
 
@@ -73,14 +77,12 @@ class Crawler(CrawlerBase):
         Initiates the crawling process:
         """
         logger.debug(f'Start Crawler {self.__class__.__name__}')
-        print('yo')
         self.on_start()
-        print(len(self.frontier))
+
         while run_forever or len(self.frontier):
             now = time.time()
             next = self.get_next()
-            print(next)
-            print('no next?')
+
             if next:
                 is_allowed = self.on_check_if_allowed(next)
 
@@ -105,10 +107,10 @@ class Crawler(CrawlerBase):
         self.on_finish()
 
 
-class AsyncCrawlerBase(CrawlerBase):
+class AsyncCrawler(CrawlerBase):
     def __init__(
             self,
-            start_urls: Optional[str | CrawlRequest] = None,
+            start_urls: Optional[list[str | CrawlRequest]] = None,
             randomize_user_agent_per_request: bool = False,
             user_agent: str = 'scrupy',
     ):
@@ -117,6 +119,7 @@ class AsyncCrawlerBase(CrawlerBase):
         self.randomize_user_agent_per_request = randomize_user_agent_per_request
         self.user_agent = user_agent
         self.frontier = AsyncFrontier()
+        self._crawl_client = HttpxClient()
 
     async def add_to_queue(self, urls: list[CrawlRequest | str],
                            ignore_repeated: bool = False) -> None:
@@ -140,17 +143,8 @@ class AsyncCrawlerBase(CrawlerBase):
         async for request in receive_channel:
             nursery.start_soon(self._crawl, request)
 
-    async def _run_request(self, request: CrawlRequest, client: httpx.AsyncClient) -> object:
-        return await client.request(
-            method=request.method,
-            url=str(request.url),
-            follow_redirects=request.follow_redirects,
-            headers=self.headers,
-            timeout=self.timeout,
-        )
-
     async def _crawl(self, request: CrawlRequest):
-        client = self.get_client()
+        client = self.client or self._crawl_client.get_new_client()
 
         raw_response = exception = None
 
@@ -158,11 +152,11 @@ class AsyncCrawlerBase(CrawlerBase):
             self.frontier.queue[request.url.domain]['last_crawled'] = time.time()
 
         try:
-            raw_response = await self._run_request(request, client)
+            raw_response = await self._crawl_client.run_request(request, client)
         except Exception as e:
             exception = e
 
-        response = self._build_response(
+        response = self._crawl_client.build_response(
             request=request,
             raw_response=raw_response,
             exception=exception,
@@ -181,41 +175,13 @@ class AsyncCrawlerBase(CrawlerBase):
                 nursery.start_soon(self.crawl_task, nursery, self.frontier.receive_channel)
 
                 while True:
-                    await trio.sleep(1)
+                    await trio.sleep(.75)
                     if (
                             not run_forever
-                            and len(nursery.child_tasks) == 2
-                            and self.frontier.pending_requests == 0
+                            and len(nursery.child_tasks) == 2  # No current running crawl requests
+                            and self.frontier.pending_requests == 0  # No pending crawl requests
                     ):
                         nursery.cancel_scope.cancel()
                         await self.on_finish()
 
         trio.run(_run)
-
-
-class AsyncHttpxCrawlerMixin:
-    client_type = httpx.AsyncClient
-    cookies_type = httpx.Cookies
-
-    def get_client(self) -> httpx.AsyncClient:
-        return self.client or httpx.AsyncClient()
-
-    def _build_response(self,
-                        request: CrawlRequest,
-                        raw_response: httpx.Response,
-                        exception: Optional[Exception] = None) -> CrawlResponse:
-        return CrawlResponse(
-            request=request,
-            raw_response=raw_response,
-            exception=exception,
-            status_code=getattr(raw_response, 'status_code', None),
-            method=getattr(raw_response, 'request.method', None),
-            http_version=getattr(raw_response, 'http_version', None),
-            headers=getattr(raw_response, 'headers', None),
-            encoding=getattr(raw_response, 'default_encoding', None),
-            text=getattr(raw_response, 'text', None),
-        )
-
-
-class AsyncCrawler(AsyncHttpxCrawlerMixin, AsyncCrawlerBase):
-    pass
