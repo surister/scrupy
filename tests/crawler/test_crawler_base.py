@@ -7,7 +7,8 @@ from scrupy.crawler.base import CrawlerBase
 
 
 @pytest.mark.parametrize("crawler_settings, input_request, expected_request_settings", [
-    ({"follow_redirects": True, 'timeout': 1}, 'http://localhost:8000', {"follow_redirects": True, 'timeout': 1}),
+    ({"follow_redirects": True, 'timeout': 1}, 'http://localhost:8000',
+     {"follow_redirects": True, 'timeout': 1}),
     ({"follow_redirects": False}, 'http://localhost:8000', {"follow_redirects": False}),
 ])
 def test_crawler_crawl_request_build(crawler_settings, input_request, expected_request_settings):
