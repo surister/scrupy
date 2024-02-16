@@ -11,20 +11,36 @@ class CrawlRequest(HTTPSettingAwareMixin):
     """
     Represents a CrawlRequest
     """
-    __slots__ = ('url', 'method', 'user_agent', 'cookies')
+    __slots__ = ('url', 'method', 'headers', '_user_agent', 'cookies', 'type')
 
     def __init__(self,
                  url: str,
                  method: str = 'GET',
+                 headers: Optional[dict] = None,
                  user_agent: Union[str, NOTSET] = NOTSET,
-                 cookies: Union[dict, NOTSET] = NOTSET):
+                 cookies: Union[dict, NOTSET] = NOTSET,
+                 type: str = 'httpx'):
+        self.headers = headers or {}
         self.url: Url = Url(url)
         self.method = method
-        self.user_agent = user_agent
+        self._user_agent = user_agent
         self.cookies = cookies
+        self.type = type
+
+    @property
+    def user_agent(self):
+        return self._user_agent
+
+    @user_agent.setter
+    def user_agent(self, value):
+        self.headers['User-Agent'] = value
 
     def as_dict(self):
-        return self.__dict__
+
+        return {k: getattr(self, k) for k in self.__slots__}
+
+    def __str__(self):
+        return f'{self.__class__.__name__}(user_agent={self.user_agent})'
 
 
 class HtmlParser:
