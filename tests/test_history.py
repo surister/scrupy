@@ -43,18 +43,14 @@ def test_history_persists(crawl_request, tmp_path):
     history.save(path)
 
     res = json.loads(pathlib.Path(path).read_text())
+
     expected = [
-        {"id": 0,
-         "request": {"url": "https://www.myfixtureurl.com", "method": "GET",
-                     "headers": "unset", "user_agent": "unset",
-                     "follow_redirects": "unset", "timeout": 5, "type": "httpx"},
-         "response": None,
-         "crawled_at": "0001-01-01 00:00:00"},
-        {"id": 1,
-         "request": {
-             "url": "https://www.myfixtureurl.com", "method": "GET", "headers": "unset",
-             "user_agent": "unset", "follow_redirects": "unset", "timeout": 5, "type": "httpx"},
-         "response": "response",
-         "crawled_at": "0002-02-02 00:00:00"}
-    ]
+        {'id': 0,
+         'request': {'url': 'https://www.myfixtureurl.com', 'method': 'GET', 'headers': {},
+                     '_user_agent': 'NOTSET', 'cookies': 'NOTSET', 'type': 'httpx'},
+         'response': None, 'crawled_at': '0001-01-01 00:00:00'},
+        {'id': 1, 'request': {
+            'url': 'https://www.myfixtureurl.com', 'method': 'GET', 'headers': {},
+            '_user_agent': 'NOTSET', 'cookies': 'NOTSET', 'type': 'httpx'}, 'response': 'response',
+         'crawled_at': '0002-02-02 00:00:00'}]
     assert expected == res
