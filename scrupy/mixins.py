@@ -17,5 +17,3 @@ class HTTPSettingAwareMixin:
 
             if getattr(self, attr, NOTSET) is NOTSET:
                 setattr(self, attr, getattr(other, attr))
-
-        self.headers['User-Agent'] = self.user_agent
