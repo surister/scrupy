@@ -25,7 +25,7 @@ NOTSET = NOTSET()
 class Url:
     def __init__(self, url: str):
         if 'http' not in url and 'https' not in url:
-            raise ValueError('Url is missing the schema. (http:// or https://')
+            raise ValueError(f'Url <{url}> missing scheme. (http:// or https://)')
 
         self.url = urllib.parse.urlparse(url)
         self.raw_url: str = url

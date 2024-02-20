@@ -17,12 +17,14 @@ class CrawlRequest(HTTPSettingAwareMixin):
                  url: str,
                  method: str = 'GET',
                  headers: Optional[dict] = None,
+                 follow_redirects: bool = True,
                  user_agent: Union[str, NOTSET] = NOTSET,
                  cookies: Union[dict, NOTSET] = NOTSET,
                  type: str = 'httpx'):
-        self.headers = headers or {}
         self.url: Url = Url(url)
         self.method = method
+        self.headers = headers or {}
+        self.follow_redirects = follow_redirects
         self._user_agent = user_agent
         self.cookies = cookies
         self.type = type
@@ -36,7 +38,6 @@ class CrawlRequest(HTTPSettingAwareMixin):
         self.headers['User-Agent'] = value
 
     def as_dict(self):
-
         return {k: getattr(self, k) for k in self.__slots__}
 
     def __str__(self):
@@ -94,7 +95,18 @@ class HtmlParser:
     def links(self):
         if not self.html:
             return list()
-        return [a_tag.attributes.get('href') for a_tag in self.selectolax().css('a')]
+
+        links = []
+
+        for a_tag in self.selectolax().css('a'):
+            if link := a_tag.attributes.get('href'):
+                links.append(link)
+
+        return links
+
+    @property
+    def absolute_links(self):
+        return list(filter(lambda url: 'http://' in url or 'https://' in url, self.links))
 
     def attr(self, attr_name, default_val=None):
         return self.attributes[attr_name]

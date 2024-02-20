@@ -76,6 +76,38 @@ def test_response_html_links(crawl_request, successful_response):
     assert not response.html.links
 
 
+def test_response_html_absolute_links(crawl_request, successful_response):
+    url = 'https://example.com'
+    successful_response.headers = {
+        'content-type': 'text/html'
+    }
+    successful_response.text = f"""
+            <!DOCTYPE html>
+            <html>
+                <head class="what"></head>
+                <body>
+                    <div class="container">
+                        <h1 id="myid">Title</h1>
+                        <a href="{url}"></a>
+                        <a href="http://localhost.com"></a>
+                        <a href="/somelink"></a>
+                    </div>
+                </body>
+            </html>
+        """
+    successful_response.request = crawl_request
+    response = successful_response
+
+    assert len(response.html.links) == 3
+    assert list(response.html.links)[0] == url
+    assert len(response.html.absolute_links) == 2
+    assert '/somelink' not in response.html.absolute_links
+
+    response.text = ""
+
+    assert not response.html.links
+
+
 def test_response_html_selects(crawl_request, successful_response):
     url = 'https://example.com'
     hello_world = 'hello world'
@@ -87,7 +119,7 @@ def test_response_html_selects(crawl_request, successful_response):
             <html>
                 <head class="what"></head>
                 <body>
-                    <div>Hey</div>
+                    <div>Hey</div> 
                     <div class="container">
                         <h1 id="myid">Title</h1>
                         <a href="{url}"></a>

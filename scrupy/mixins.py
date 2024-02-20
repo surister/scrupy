@@ -3,7 +3,7 @@ from scrupy.utils import NOTSET
 
 class HTTPSettingAwareMixin:
     """
-    Mixin to inject known attributes from different classes, ie: follow_redirect, headers, user_agent..
+    Mixin to inject known attributes from different classes, ie: follow_redirects, headers, user_agent..
 
     Used to inject attributes from Crawler or Client -> CrawlRequest.
     """
