@@ -230,11 +230,11 @@ def timed(condition: str = '>=', time_ms: int = 0):
 
 
 @pytest.mark.timings
-def test_crawler_correct_delays(crawler_base):
+def test_crawler_correct_delays(sync_crawler):
     # Fixme Parametrize this
     @timed('<=', 1200)
     def t():
-        crawler = crawler_base(min_delay_per_tick=0, delay_per_request=1000)
+        crawler = sync_crawler(min_delay_per_tick=0, delay_per_request=1000)
         crawler.add_to_queue('http://localhost:8000')
         crawler.run()
 
@@ -242,7 +242,7 @@ def test_crawler_correct_delays(crawler_base):
 
     @timed('<=', 1600)
     def t():
-        crawler = crawler_base(min_delay_per_tick=1500, delay_per_request=1000)
+        crawler = sync_crawler(min_delay_per_tick=1500, delay_per_request=1000)
         crawler.add_to_queue('http://localhost:8000')
         crawler.run()
 
@@ -250,7 +250,7 @@ def test_crawler_correct_delays(crawler_base):
 
     @timed('<=', 1600)
     def t():
-        crawler = crawler_base(min_delay_per_tick=2000, delay_per_request=1000)
+        crawler = sync_crawler(min_delay_per_tick=2000, delay_per_request=1000)
         crawler.add_to_queue('http://localhost:8000')
         crawler.run()
 
@@ -258,17 +258,19 @@ def test_crawler_correct_delays(crawler_base):
         t()
 
 
-def test_crawler_user_agent(crawler_base, crawl_request):
+def test_crawler_user_agent(sync_crawler, crawl_request):
     default_user_agent = 'default_user_agent'
-    c = crawler_base(
+    c = sync_crawler(
         randomize_user_agent_per_request=True,
         user_agent=default_user_agent
     )
 
     # # randomize_user_agent_per_request is True, test we get a chrome-like user-agent
-    request = c._build_request(crawl_request)
+    request = c._build_request('http://localhost')
     last_user_agent = request.user_agent
+    print(last_user_agent)
     assert '(KHTML, like Gecko) Chrome' in request.user_agent
+
     request = c._build_request('http://localhost')
     # Test that two randomly generated user-agents are not the same, this tests for 'randomness' so
     # technically both random generated user-agents could be the same and make this fail,

@@ -27,10 +27,3 @@ def test_crawler_crawl_request_build(crawler_settings, input_request, expected_r
 
     for k, v in crawler_settings.items():
         assert getattr(request, k) == expected_request_settings[k]
-
-
-def test_s():
-    client = httpx.Client(follow_redirects=False)
-    c = Crawler(follow_redirects=True, client=client, user_agent='sexy')
-    c.add_to_queue('http://localhost:8080')
-    c.run()
