@@ -69,9 +69,8 @@ class CrawlerBase(HTTPSettingAwareMixin, abc.ABC):
     def on_before_crawl(self, request: CrawlRequest) -> CrawlRequest:
         return request
 
-    @abc.abstractmethod
     def on_start(self) -> None:
-        ...
+        self.client.on_start()
 
     @abc.abstractmethod
     def on_finish(self) -> None:
@@ -91,10 +90,7 @@ class CrawlerBase(HTTPSettingAwareMixin, abc.ABC):
         self.user_agent = self.generate_user_agent(
             request) if self.randomize_user_agent_per_request else self.user_agent
 
-        if self.client:
-            request.inject_http_attrs_from(self.client, user_agent=self.user_agent)
-        else:
-            request.inject_http_attrs_from(self)
+        request.inject_http_attrs_from(self)
 
         return request
 
@@ -128,3 +124,6 @@ class CrawlerClientBase(abc.ABC):
 
     def cleanup(self) -> None:
         pass
+
+    def on_start(self) -> None:
+        ...

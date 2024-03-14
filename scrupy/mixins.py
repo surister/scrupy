@@ -14,6 +14,5 @@ class HTTPSettingAwareMixin:
             if attr in override:
                 setattr(self, attr, override.get(attr))
                 continue
-
             if getattr(self, attr, NOTSET) is NOTSET:
                 setattr(self, attr, getattr(other, attr))

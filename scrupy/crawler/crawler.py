@@ -6,10 +6,11 @@ from typing import Optional
 
 import httpx
 import trio
+import trio_asyncio
 
 from scrupy import CrawlRequest
 from scrupy.crawler.base import CrawlerBase, CrawlerClientBase
-from scrupy.crawler.clients import HttpxClient
+from scrupy.crawler.clients import HttpxClient, AsyncHttpxClient
 from scrupy.crawler.frontier import AsyncFrontier, SyncFrontier
 from scrupy.request import CrawlResponse
 
@@ -119,7 +120,7 @@ class AsyncCrawler(CrawlerBase):
         self.randomize_user_agent_per_request = randomize_user_agent_per_request
         self.user_agent = user_agent
         self.frontier = AsyncFrontier()
-        self._crawl_client = HttpxClient()
+        self._crawl_client = AsyncHttpxClient()
 
     async def add_to_queue(self, urls: list[CrawlRequest | str],
                            ignore_repeated: bool = False) -> None:
@@ -131,10 +132,11 @@ class AsyncCrawler(CrawlerBase):
         pass
 
     async def on_finish(self) -> None:
-        pass
+        print('closin')
+        await self.client.close()
 
     async def on_start(self) -> None:
-        pass
+        ...
 
     def get_next(self):
         raise Exception('Async does not use get_next')
@@ -144,15 +146,13 @@ class AsyncCrawler(CrawlerBase):
             nursery.start_soon(self._crawl, request)
 
     async def _crawl(self, request: CrawlRequest):
-        client = self.client or self._crawl_client.get_new_client()
-
         raw_response = exception = None
 
         if self.frontier.delay_rules.get_delay(request.url.domain):
             self.frontier.queue[request.url.domain]['last_crawled'] = time.time()
 
         try:
-            raw_response = await self._crawl_client.run_request(request, client)
+            raw_response = await self._crawl_client.run_request(request, self.client)
         except Exception as e:
             exception = e
 
@@ -167,10 +167,13 @@ class AsyncCrawler(CrawlerBase):
 
     def run(self, run_forever: bool = False) -> None:
         async def _run():
+            self.client = await self._crawl_client.get_new_client()
+
             if self.start_urls:
                 await self.add_to_queue(self.start_urls)
 
             async with trio.open_nursery() as nursery:
+                await self.on_start()
                 nursery.start_soon(self.frontier.run)
                 nursery.start_soon(self.crawl_task, nursery, self.frontier.receive_channel)
 
@@ -184,4 +187,4 @@ class AsyncCrawler(CrawlerBase):
                         nursery.cancel_scope.cancel()
                         await self.on_finish()
 
-        trio.run(_run)
+        trio_asyncio.run(_run)

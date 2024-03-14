@@ -17,7 +17,7 @@ class CrawlRequest(HTTPSettingAwareMixin):
                  url: str,
                  method: str = 'GET',
                  headers: Optional[dict] = None,
-                 follow_redirects: bool = True,
+                 follow_redirects: bool = NOTSET,
                  user_agent: Union[str, NOTSET] = NOTSET,
                  cookies: Union[dict, NOTSET] = NOTSET,
                  type: str = 'httpx'):
@@ -35,6 +35,7 @@ class CrawlRequest(HTTPSettingAwareMixin):
 
     @user_agent.setter
     def user_agent(self, value):
+        self._user_agent = value
         self.headers['User-Agent'] = value
 
     def as_dict(self):
